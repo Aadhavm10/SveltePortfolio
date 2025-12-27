@@ -1,0 +1,144 @@
+---
+import BubbleMenu from '../components/BubbleMenu.svelte';
+import CircularGallery from '../components/CircularGallery.svelte';
+
+const projects = [
+  {
+    src: "/projectpics/ScribbleAi.png",
+    title: "ScribbleAi",
+    description: "AI-powered notes application with intelligent summarization, task extraction, and text rephrasing capabilities for enhanced productivity.",
+    projectUrl: "https://github.com/Aadhavm10/ScribbleAi"
+  },
+  {
+    src: "/projectpics/flowstate.png",
+    title: "FlowState",
+    description: "Immersive 3D music visualizer powered by Every Noise at Once, creating dynamic audiovisual experiences that respond to music in real-time.",
+    projectUrl: "https://flowstate-music.vercel.app/"
+  },
+  {
+    src: "/projectpics/Foodie.png",
+    title: "Foodie",
+    description: "Group dining solution that finds restaurants accommodating everyone's dietary restrictions, preferences, and budget constraints.",
+    projectUrl: "https://foodiemaps.vercel.app/landing"
+  },
+  {
+    src: "/projectpics/gpu-optimizer.png",
+    title: "GPU Optimizer",
+    description: "Real-time GPU monitoring and optimization toolkit with CUDA performance enhancements achieving up to 12x speedup improvements.",
+    projectUrl: "https://github.com/Aadhavm10/GPU_Optimzer"
+  },
+  {
+    src: "/projectpics/FantasyPremierLeague.png",
+    title: "PremScout",
+    description: "Fantasy Premier League Points Predictor using machine learning algorithms to analyze player performance and predict fantasy points.",
+    projectUrl: "https://prem-scout.vercel.app/"
+  }
+];
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Projects - Aadhav Manimurugan</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        overflow-x: hidden;
+        background: #0a0a0a;
+      }
+
+      .container {
+        position: relative;
+        width: 100%;
+        min-height: 100vh;
+        overflow: hidden;
+        background: #0a0a0a;
+      }
+
+      .credit {
+        position: fixed;
+        bottom: 1.5rem;
+        right: 1.5rem;
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.6);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        z-index: 100;
+        pointer-events: none;
+        font-weight: 400;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Navigation Layer: Bubble Menu -->
+      <BubbleMenu
+        client:load
+        logo="AM"
+        menuBg="#ffffff"
+        menuContentColor="#111111"
+        useFixedPosition={true}
+        items={[
+          {
+            label: 'home',
+            href: '/',
+            ariaLabel: 'Home',
+            rotation: -8,
+            hoverStyles: { bgColor: '#ff6b6b', textColor: '#ffffff' }
+          },
+          {
+            label: 'about',
+            href: '/about',
+            ariaLabel: 'About',
+            rotation: 8,
+            hoverStyles: { bgColor: '#4ecdc4', textColor: '#ffffff' }
+          },
+          {
+            label: 'projects',
+            href: '/projects',
+            ariaLabel: 'Projects',
+            rotation: 8,
+            hoverStyles: { bgColor: '#ffe66d', textColor: '#111111' }
+          },
+          {
+            label: 'life',
+            href: '/life',
+            ariaLabel: 'Life',
+            rotation: 8,
+            hoverStyles: { bgColor: '#a8e6cf', textColor: '#111111' }
+          },
+          {
+            label: 'connect',
+            ariaLabel: 'Connect',
+            rotation: -8,
+            hoverStyles: { bgColor: '#ff8b94', textColor: '#ffffff' },
+            subItems: [
+              { label: 'email', href: 'mailto:your.email@example.com' },
+              { label: 'github', href: 'https://github.com/Aadhavm10' },
+              { label: 'linkedin', href: 'https://www.linkedin.com/in/aadhav-/' }
+            ]
+          }
+        ]}
+      />
+
+      <!-- Content -->
+      <CircularGallery
+        client:load
+        projects={projects}
+      />
+
+      <!-- Credit Text -->
+      <div class="credit">
+        Made with Svelte, Astro, and Three.js
+      </div>
+    </div>
+  </body>
+</html>

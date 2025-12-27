@@ -1,0 +1,139 @@
+---
+import Ballpit from '../components/Ballpit.svelte';
+import BubbleMenu from '../components/BubbleMenu.svelte';
+import HeroContent from '../components/HeroContent.svelte';
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Portfolio - Interactive Ballpit</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        overflow-x: hidden;
+        background: #0a0a0a;
+      }
+
+      .container {
+        position: relative;
+        width: 100%;
+        height: 100vh;
+        overflow: hidden;
+        background: #0a0a0a;
+      }
+
+      .ballpit-background {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+      }
+
+      .credit {
+        position: fixed;
+        bottom: 1.5rem;
+        right: 1.5rem;
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.6);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        z-index: 100;
+        pointer-events: none;
+        font-weight: 400;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Background Layer: Ballpit -->
+      <div class="ballpit-background">
+        <Ballpit
+          client:only="svelte"
+          count={200}
+          gravity={0.1}
+          friction={0.99}
+          wallBounce={0.95}
+          followCursor={false}
+          colors={[0xff6b6b, 0x4ecdc4, 0xffe66d, 0xa8e6cf, 0xff8b94]}
+          ambientIntensity={1}
+          lightIntensity={200}
+          minSize={0.5}
+          maxSize={1}
+          maxVelocity={0.3}
+        />
+      </div>
+
+      <!-- Navigation Layer: Bubble Menu -->
+      <BubbleMenu
+        client:load
+        logo="AM"
+        menuBg="#ffffff"
+        menuContentColor="#111111"
+        useFixedPosition={true}
+        items={[
+          {
+            label: 'home',
+            href: '/',
+            ariaLabel: 'Home',
+            rotation: -8,
+            hoverStyles: { bgColor: '#ff6b6b', textColor: '#ffffff' }
+          },
+          {
+            label: 'about',
+            href: '/about',
+            ariaLabel: 'About',
+            rotation: 8,
+            hoverStyles: { bgColor: '#4ecdc4', textColor: '#ffffff' }
+          },
+          {
+            label: 'projects',
+            href: '/projects',
+            ariaLabel: 'Projects',
+            rotation: 8,
+            hoverStyles: { bgColor: '#ffe66d', textColor: '#111111' }
+          },
+          {
+            label: 'life',
+            href: '/life',
+            ariaLabel: 'Life',
+            rotation: 8,
+            hoverStyles: { bgColor: '#a8e6cf', textColor: '#111111' }
+          },
+          {
+            label: 'connect',
+            ariaLabel: 'Connect',
+            rotation: -8,
+            hoverStyles: { bgColor: '#ff8b94', textColor: '#ffffff' },
+            subItems: [
+              { label: 'email', href: 'mailto:your.email@example.com' },
+              { label: 'github', href: 'https://github.com/Aadhavm10' },
+              { label: 'linkedin', href: 'https://www.linkedin.com/in/aadhav-/' }
+            ]
+          }
+        ]}
+      />
+
+      <!-- Content Layer: Hero Text -->
+      <HeroContent
+        client:load
+        title="Aadhav Manimurugan"
+      />
+
+      <!-- Credit Text -->
+      <div class="credit">
+        Made with Svelte, Astro, and Three.js
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,143 @@
+---
+import BubbleMenu from '../components/BubbleMenu.svelte';
+import AboutContent from '../components/AboutContent.svelte';
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>About - Aadhav Manimurugan</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        overflow-x: hidden;
+        background: #0a0a0a;
+      }
+
+      .container {
+        position: relative;
+        width: 100%;
+        min-height: 100vh;
+        overflow: hidden;
+        background: #0a0a0a;
+      }
+
+      .content {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 8rem 2rem 2rem;
+        text-align: center;
+      }
+
+      .page-title {
+        font-size: clamp(3rem, 8vw, 5rem);
+        font-weight: 900;
+        color: white;
+        text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        margin-bottom: 2rem;
+        line-height: 1.1;
+      }
+
+      .page-content {
+        max-width: 800px;
+        font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+        color: white;
+        text-shadow: 0 2px 15px rgba(0, 0, 0, 0.5);
+        line-height: 1.6;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 2rem;
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+      }
+
+      .credit {
+        position: fixed;
+        bottom: 1.5rem;
+        right: 1.5rem;
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.6);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        z-index: 100;
+        pointer-events: none;
+        font-weight: 400;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Navigation Layer: Bubble Menu -->
+      <BubbleMenu
+        client:load
+        logo="AM"
+        menuBg="#ffffff"
+        menuContentColor="#111111"
+        useFixedPosition={true}
+        items={[
+          {
+            label: 'home',
+            href: '/',
+            ariaLabel: 'Home',
+            rotation: -8,
+            hoverStyles: { bgColor: '#ff6b6b', textColor: '#ffffff' }
+          },
+          {
+            label: 'about',
+            href: '/about',
+            ariaLabel: 'About',
+            rotation: 8,
+            hoverStyles: { bgColor: '#4ecdc4', textColor: '#ffffff' }
+          },
+          {
+            label: 'projects',
+            href: '/projects',
+            ariaLabel: 'Projects',
+            rotation: 8,
+            hoverStyles: { bgColor: '#ffe66d', textColor: '#111111' }
+          },
+          {
+            label: 'life',
+            href: '/life',
+            ariaLabel: 'Life',
+            rotation: 8,
+            hoverStyles: { bgColor: '#a8e6cf', textColor: '#111111' }
+          },
+          {
+            label: 'connect',
+            ariaLabel: 'Connect',
+            rotation: -8,
+            hoverStyles: { bgColor: '#ff8b94', textColor: '#ffffff' },
+            subItems: [
+              { label: 'email', href: 'mailto:your.email@example.com' },
+              { label: 'github', href: 'https://github.com/Aadhavm10' },
+              { label: 'linkedin', href: 'https://www.linkedin.com/in/aadhav-/' }
+            ]
+          }
+        ]}
+      />
+
+      <!-- Content -->
+      <div class="content">
+        <AboutContent client:load />
+      </div>
+
+      <!-- Credit Text -->
+      <div class="credit">
+        Made with Svelte, Astro, and Three.js
+      </div>
+    </div>
+  </body>
+</html>

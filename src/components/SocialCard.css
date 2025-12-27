@@ -1,0 +1,104 @@
+.social-card {
+  display: block;
+  width: 350px;
+  min-height: 140px;
+  background: #2a2a3e;
+  border: 2px solid white;
+  border-radius: 0;
+  padding: 24px;
+  text-decoration: none;
+  color: white;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  position: relative;
+  box-shadow: none;
+}
+
+.social-card:hover {
+  min-height: 200px;
+}
+
+.social-card-default {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  position: relative;
+}
+
+.social-card-icon {
+  flex-shrink: 0;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.social-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.social-card-platform {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  color: white;
+}
+
+.social-card-username {
+  font-size: 16px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.social-card-hint {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 400;
+  white-space: nowrap;
+  transition: opacity 0.3s ease;
+}
+
+.social-card.hovered .social-card-hint {
+  opacity: 0;
+}
+
+.social-card-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+@media (max-width: 768px) {
+  .social-card {
+    width: 100%;
+    max-width: 350px;
+  }
+}
