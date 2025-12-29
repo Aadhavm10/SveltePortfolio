@@ -27,38 +27,31 @@
   }> = [
     {
       label: 'home',
-      href: '#',
+      href: '/',
       ariaLabel: 'Home',
       rotation: -8,
       hoverStyles: { bgColor: '#3b82f6', textColor: '#ffffff' }
     },
     {
       label: 'about',
-      href: '#',
+      href: '/about',
       ariaLabel: 'About',
       rotation: 8,
       hoverStyles: { bgColor: '#10b981', textColor: '#ffffff' }
     },
     {
       label: 'projects',
-      href: '#',
+      href: '/projects',
       ariaLabel: 'Projects',
       rotation: 8,
       hoverStyles: { bgColor: '#f59e0b', textColor: '#ffffff' }
     },
     {
       label: 'life',
-      href: '#',
+      href: '/life',
       ariaLabel: 'life',
       rotation: 8,
       hoverStyles: { bgColor: '#ef4444', textColor: '#ffffff' }
-    },
-    {
-      label: 'contact',
-      href: '#',
-      ariaLabel: 'Contact',
-      rotation: -8,
-      hoverStyles: { bgColor: '#8b5cf6', textColor: '#ffffff' }
     }
   ];
 
@@ -75,6 +68,14 @@
     const nextState = !isMenuOpen;
     if (nextState) showOverlay = true;
     isMenuOpen = nextState;
+  }
+
+  function handleItemTouch(idx: number) {
+    hoveredItemIndex = idx;
+  }
+
+  function handleItemTouchEnd() {
+    hoveredItemIndex = null;
   }
 
   function animateMenu() {
@@ -198,6 +199,8 @@
               bind:this={bubblesRef[idx]}
               on:mouseenter={() => hoveredItemIndex = idx}
               on:mouseleave={() => hoveredItemIndex = null}
+              on:touchstart={() => handleItemTouch(idx)}
+              on:touchend={handleItemTouchEnd}
             >
               <span class="pill-label" bind:this={labelRefs[idx]}>
                 {hoveredItemIndex === idx ? '' : item.label}
