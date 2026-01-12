@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fade, fly } from 'svelte/transition';
+  import GitHubContributions from './GitHubContributions.svelte';
 
   // Card data
   const techStackCards = [
@@ -195,6 +196,11 @@
           </p>
         </div>
       </div>
+
+      <!-- GitHub Contributions -->
+      <div class="github-section" in:fly={{ x: -50, duration: 800, delay: 900 }}>
+        <GitHubContributions />
+      </div>
     </div>
 
     <!-- Card Stack -->
@@ -297,6 +303,16 @@
       margin: 0;
       margin-left: auto;
       margin-right: 0;
+    }
+  }
+
+  .github-section {
+    margin-top: 1.5rem;
+  }
+
+  @media (min-width: 1024px) {
+    .github-section {
+      margin-top: 2rem;
     }
   }
 

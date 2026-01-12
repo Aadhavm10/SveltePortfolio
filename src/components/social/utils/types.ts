@@ -47,4 +47,19 @@ export interface LinkedInHighlight {
   url?: string;
 }
 
+export interface ContributionDay {
+  date: string;
+  contributionCount: number;
+  color: string;
+}
+
+export interface ContributionWeek {
+  contributionDays: ContributionDay[];
+}
+
+export interface GitHubContributions {
+  totalContributions: number;
+  weeks: ContributionWeek[];
+}
+
 export type PlatformData = GitHubData | InstagramData | LinkedInHighlight[];

@@ -1,5 +1,5 @@
 import { apiCache } from './cache';
-import type { GitHubData, InstagramData, LinkedInHighlight } from './types';
+import type { GitHubData, InstagramData, LinkedInHighlight, GitHubContributions } from './types';
 
 const GITHUB_USERNAME = import.meta.env.PUBLIC_GITHUB_USERNAME || 'Aadhavm10';
 const GITHUB_TOKEN = import.meta.env.PUBLIC_GITHUB_TOKEN;
@@ -112,4 +112,66 @@ export function getLinkedInHighlights(): LinkedInHighlight[] {
       url: 'https://www.linkedin.com/in/' + LINKEDIN_USERNAME
     }
   ];
+}
+
+// GitHub Contributions API
+export async function fetchGitHubContributions(): Promise<GitHubContributions> {
+  const cacheKey = 'github-contributions';
+
+  // Check cache first
+  const cached = apiCache.get<GitHubContributions>(cacheKey);
+  if (cached) return cached;
+
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json'
+  };
+
+  if (GITHUB_TOKEN) {
+    headers['Authorization'] = `Bearer ${GITHUB_TOKEN}`;
+  }
+
+  const query = `
+    query($username: String!) {
+      user(login: $username) {
+        contributionsCollection {
+          contributionCalendar {
+            totalContributions
+            weeks {
+              contributionDays {
+                date
+                contributionCount
+                color
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const response = await fetch('https://api.github.com/graphql', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        query,
+        variables: { username: GITHUB_USERNAME }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('GitHub GraphQL request failed');
+    }
+
+    const result = await response.json();
+    const data = result.data.user.contributionsCollection.contributionCalendar;
+
+    // Cache the result
+    apiCache.set(cacheKey, data);
+
+    return data;
+  } catch (error) {
+    console.error('GitHub Contributions Error:', error);
+    throw new Error('Failed to fetch GitHub contributions');
+  }
 }
