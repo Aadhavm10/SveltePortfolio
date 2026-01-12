@@ -292,6 +292,8 @@
     color: inherit;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     cursor: pointer;
+    position: relative;
+    z-index: 9999;
   }
 
   :global(.bubble-menu .logo-bubble:hover) {
@@ -306,6 +308,8 @@
   :global(.bubble-menu .toggle-bubble) {
     width: var(--bubble-size);
     height: var(--bubble-size);
+    position: relative;
+    z-index: 9999;
   }
 
   :global(.bubble-menu .logo-content) {
@@ -327,6 +331,9 @@
     padding: 0;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+    pointer-events: auto;
+    position: relative;
+    z-index: 10000;
   }
 
   :global(.bubble-menu .menu-line) {
@@ -359,6 +366,12 @@
 
     :global(.bubble-menu) {
       padding: 0 1.5em;
+    }
+
+    :global(.bubble-menu .menu-btn) {
+      min-width: 52px;
+      min-height: 52px;
+      padding: 10px;
     }
   }
 
