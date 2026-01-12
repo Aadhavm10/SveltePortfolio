@@ -78,6 +78,11 @@
     hoveredItemIndex = null;
   }
 
+  function handleLinkClick() {
+    // Close menu when a link is clicked
+    isMenuOpen = false;
+  }
+
   function animateMenu() {
     if (typeof window === 'undefined') return;
 
@@ -223,6 +228,7 @@
               class="pill-link"
               style="--item-rot: {item.rotation ?? 0}deg; --pill-bg: {menuBg}; --pill-color: {menuContentColor}; --hover-bg: {item.hoverStyles?.bgColor || '#f3f4f6'}; --hover-color: {item.hoverStyles?.textColor || menuContentColor};"
               bind:this={bubblesRef[idx]}
+              on:click={handleLinkClick}
             >
               <span class="pill-label" bind:this={labelRefs[idx]}>
                 {item.label}
