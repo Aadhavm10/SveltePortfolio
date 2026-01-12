@@ -252,7 +252,7 @@
     gap: 16px;
     padding: 0 2em;
     pointer-events: none;
-    z-index: 99;
+    z-index: 999;
   }
 
   :global(.bubble-menu.fixed) {
@@ -325,6 +325,8 @@
     align-items: center;
     justify-content: center;
     padding: 0;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   :global(.bubble-menu .menu-line) {
@@ -350,6 +352,16 @@
     transform: translateY(-4px) rotate(-45deg);
   }
 
+  @media (max-width: 767px) {
+    :global(.bubble-menu .bubble) {
+      --bubble-size: 52px;
+    }
+
+    :global(.bubble-menu) {
+      padding: 0 1.5em;
+    }
+  }
+
   @media (min-width: 768px) {
     :global(.bubble-menu .bubble) {
       --bubble-size: 56px;
@@ -367,7 +379,7 @@
     align-items: center;
     justify-content: center;
     pointer-events: none;
-    z-index: 98;
+    z-index: 998;
   }
 
   :global(.bubble-menu-items.fixed) {
