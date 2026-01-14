@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { fade, fly } from 'svelte/transition';
   import GitHubContributions from './GitHubContributions.svelte';
+  import AppleMusicPlaylists from './AppleMusicPlaylists.svelte';
 
   // Card data
   const techStackCards = [
@@ -201,6 +202,11 @@
       <div class="github-section" in:fly={{ x: -50, duration: 800, delay: 900 }}>
         <GitHubContributions />
       </div>
+
+      <!-- Apple Music Playlists -->
+      <div class="music-section" in:fly={{ x: -50, duration: 800, delay: 1100 }}>
+        <AppleMusicPlaylists />
+      </div>
     </div>
 
     <!-- Card Stack -->
@@ -312,6 +318,16 @@
 
   @media (min-width: 1024px) {
     .github-section {
+      margin-top: 2rem;
+    }
+  }
+
+  .music-section {
+    margin-top: 1.5rem;
+  }
+
+  @media (min-width: 1024px) {
+    .music-section {
       margin-top: 2rem;
     }
   }
