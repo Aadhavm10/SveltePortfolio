@@ -36,7 +36,7 @@
   ];
 </script>
 
-<div class="playlists-container">
+<div class="playlists-wrapper">
   <div class="header">
     <h3 class="title">Music Playlists</h3>
   </div>
@@ -67,21 +67,8 @@
 </div>
 
 <style>
-  .playlists-container {
-    border-radius: 0.75rem;
-    border: 1px solid rgba(167, 139, 250, 0.2);
-    background: linear-gradient(
-      to bottom right,
-      rgba(139, 92, 246, 0.05),
-      rgba(6, 182, 212, 0.05)
-    );
-    backdrop-filter: blur(4px);
-    padding: 1.5rem;
-    transition: border-color 0.3s ease;
-  }
-
-  .playlists-container:hover {
-    border-color: rgba(167, 139, 250, 0.4);
+  .playlists-wrapper {
+    width: 100%;
   }
 
   .header {
@@ -148,10 +135,6 @@
   }
 
   @media (max-width: 640px) {
-    .playlists-container {
-      padding: 1rem;
-    }
-
     .title {
       font-size: 0.875rem;
     }

@@ -27,7 +27,31 @@
   const targetText = "Computer Science Student at the University of Texas at Dallas";
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
 
+  // Scroll-triggered animation states
+  let githubVisible = false;
+  let musicVisible = false;
+  let githubSection: HTMLElement;
+  let musicSection: HTMLElement;
+
   onMount(() => {
+    // Intersection Observer for scroll-triggered animations
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.target === githubSection && entry.isIntersecting) {
+            githubVisible = true;
+          }
+          if (entry.target === musicSection && entry.isIntersecting) {
+            musicVisible = true;
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    if (githubSection) observer.observe(githubSection);
+    if (musicSection) observer.observe(musicSection);
+
     // Decrypted text animation
     let iteration = 0;
     const interval = setInterval(() => {
@@ -48,7 +72,10 @@
       iteration += 1;
     }, 15);
 
-    return () => clearInterval(interval);
+    return () => {
+      observer.disconnect();
+      clearInterval(interval);
+    };
   });
 
   function handleMouseDown(e: MouseEvent, card: { id: number; img: string }) {
@@ -180,7 +207,8 @@
     </span>
   </div>
 
-  <div class="content-wrapper">
+  <!-- About Section: Text + Photos together -->
+  <div class="about-wrapper">
     <div class="content-left">
       <!-- About me -->
       <div class="about-cards" in:fly={{ x: -50, duration: 800, delay: 700 }}>
@@ -196,16 +224,6 @@
             Outside of tech, I enjoy playing soccer and basketball, watching movies, listening to music, and spending time with friends. I'm always looking for the next challenge, whether it's on the field or in front of a screen.
           </p>
         </div>
-      </div>
-
-      <!-- GitHub Contributions -->
-      <div class="github-section" in:fly={{ x: -50, duration: 800, delay: 900 }}>
-        <GitHubContributions />
-      </div>
-
-      <!-- Apple Music Playlists -->
-      <div class="music-section" in:fly={{ x: -50, duration: 800, delay: 1100 }}>
-        <AppleMusicPlaylists />
       </div>
     </div>
 
@@ -244,6 +262,24 @@
     <p class="drag-hint">Drag or swipe to explore</p>
     </div>
   </div>
+
+  <!-- GitHub Contributions Section (Full Width) -->
+  <div class="github-section" bind:this={githubSection}>
+    {#if githubVisible}
+      <div in:fly={{ y: 50, duration: 1000, delay: 200 }}>
+        <GitHubContributions />
+      </div>
+    {/if}
+  </div>
+
+  <!-- Apple Music Playlists Section (Full Width) -->
+  <div class="music-section" bind:this={musicSection}>
+    {#if musicVisible}
+      <div in:fly={{ y: 50, duration: 1000, delay: 200 }}>
+        <AppleMusicPlaylists />
+      </div>
+    {/if}
+  </div>
 </div>
 
 <style>
@@ -257,43 +293,45 @@
     width: 100%;
     position: relative;
     z-index: 10;
-    gap: 2rem;
+    gap: 5rem;
   }
 
   @media (min-width: 1024px) {
     .hero-content {
-      padding: 0 5rem;
+      padding: 0 2rem;
       margin-top: 4rem;
-      gap: 3rem;
+      gap: 8rem;
     }
   }
 
-  .content-wrapper {
+  .about-wrapper {
     display: flex;
     flex-direction: column;
     align-items: center;
     width: 100%;
-    gap: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 3rem;
+    gap: 3rem;
   }
 
   @media (min-width: 1024px) {
-    .content-wrapper {
+    .about-wrapper {
       flex-direction: row;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 1rem;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 3rem;
+      padding: 0 4rem;
     }
   }
 
   .content-left {
     width: 100%;
-    max-width: 500px;
+    max-width: 600px;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    margin: auto;
     text-align: center;
-    order: 2;
   }
 
   @media (min-width: 640px) {
@@ -304,31 +342,35 @@
 
   @media (min-width: 1024px) {
     .content-left {
-      order: 1;
       text-align: left;
-      margin: 0;
-      margin-left: auto;
-      margin-right: 0;
+      flex: 0 0 60%;
+      max-width: none;
     }
   }
 
   .github-section {
-    margin-top: 1.5rem;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 3rem;
   }
 
   @media (min-width: 1024px) {
     .github-section {
-      margin-top: 2rem;
+      padding: 0 4rem;
     }
   }
 
   .music-section {
-    margin-top: 1.5rem;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 3rem;
   }
 
   @media (min-width: 1024px) {
     .music-section {
-      margin-top: 2rem;
+      padding: 0 4rem;
     }
   }
 
@@ -437,17 +479,17 @@
     width: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
-    order: 1;
-    margin-bottom: 2rem;
     gap: 1rem;
   }
 
   @media (min-width: 1024px) {
     .content-right {
-      order: 2;
-      margin-bottom: 0;
+      flex: 0 0 40%;
+      max-width: 40%;
+      align-items: flex-start;
+      padding-left: 2rem;
     }
   }
 
