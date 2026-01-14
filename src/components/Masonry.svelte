@@ -32,6 +32,7 @@
   let imagesReady = false;
   let hasMounted = false;
   let columns = 1;
+  let loadedImages = new Set<string>();
 
   // Media query reactive statement
   $: {
@@ -73,17 +74,34 @@
     });
   })();
 
-  async function preloadImages(urls: string[]): Promise<void> {
-    await Promise.all(
-      urls.map(
-        src =>
-          new Promise<void>(resolve => {
-            const img = new Image();
-            img.src = src;
-            img.onload = img.onerror = () => resolve();
-          })
-      )
-    );
+  function loadImage(src: string): Promise<void> {
+    return new Promise<void>(resolve => {
+      const img = new Image();
+      img.src = src;
+      img.onload = img.onerror = () => {
+        loadedImages.add(src);
+        loadedImages = loadedImages; // trigger reactivity
+        resolve();
+      };
+    });
+  }
+
+  function lazyLoadImages() {
+    // Load first 6 images immediately for above-the-fold
+    const visibleImages = items.slice(0, 6);
+    const remainingImages = items.slice(6);
+
+    // Load visible images first
+    Promise.all(visibleImages.map(item => loadImage(item.img))).then(() => {
+      imagesReady = true;
+    });
+
+    // Load remaining images progressively
+    remainingImages.forEach((item, index) => {
+      setTimeout(() => {
+        loadImage(item.img);
+      }, index * 100); // Stagger loading
+    });
   }
 
   function getInitialPosition(item: GridItem) {
@@ -208,10 +226,7 @@
   }
 
   onMount(() => {
-    (async () => {
-      await preloadImages(items.map(i => i.img));
-      imagesReady = true;
-    })();
+    lazyLoadImages();
 
     // Handle media query changes
     const mediaQueries = [
@@ -249,7 +264,10 @@
       on:mouseenter={e => handleMouseEnter(e, item)}
       on:mouseleave={e => handleMouseLeave(e, item)}
     >
-      <div class="item-img" style="background-image: url({item.img})">
+      <div class="item-img" style="background-image: {loadedImages.has(item.img) ? `url(${item.img})` : 'none'}">
+        {#if !loadedImages.has(item.img)}
+          <div class="loading-skeleton"></div>
+        {/if}
         {#if colorShiftOnHover}
           <div
             class="color-overlay"
@@ -299,5 +317,26 @@
     line-height: 10px;
     border-radius: 10px;
     box-shadow: 0px 10px 50px -10px rgba(0, 0, 0, 0.2);
+  }
+
+  .loading-skeleton {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.05) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 10px;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
   }
 </style>
