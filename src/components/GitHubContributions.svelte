@@ -10,7 +10,7 @@
   let mounted = $state(false);
 
   // Generate month labels dynamically from contribution data
-  const monthLabels = $derived.by(() => {
+  const monthLabels = $derived((() => {
     if (!contributions) return [];
 
     const labels: Array<{month: string, index: number}> = [];
@@ -27,7 +27,7 @@
     });
 
     return labels;
-  });
+  })());
 
   // Day labels - 7 rows matching GitHub (Sun at top, Sat at bottom)
   // Show labels only on Mon, Wed, Fri like GitHub does
