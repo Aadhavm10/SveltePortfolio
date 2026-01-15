@@ -34,6 +34,28 @@
     if (count <= 9) return '#26a641';
     return '#39d353';
   }
+
+  // Get month labels from contribution data
+  const monthLabels = $derived.by(() => {
+    if (!contributions) return [];
+
+    const labels: Array<{month: string, index: number}> = [];
+    let lastMonth = '';
+
+    contributions.weeks.forEach((week, weekIndex) => {
+      const date = new Date(week.contributionDays[0].date);
+      const monthName = date.toLocaleString('en-US', { month: 'short' });
+
+      if (monthName !== lastMonth && weekIndex % 4 === 0) {
+        labels.push({ month: monthName, index: weekIndex });
+        lastMonth = monthName;
+      }
+    });
+
+    return labels;
+  });
+
+  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 </script>
 
 <div
@@ -73,18 +95,41 @@
   {:else if contributions}
     <!-- Contributions Grid -->
     <div style="width: 100%; overflow-x: auto;">
-      <!-- Simple grid - 7 rows of contribution days -->
-      <div style="display: flex; gap: 3px; margin-bottom: 12px;">
-        {#each contributions.weeks as week}
-          <div style="display: flex; flex-direction: column; gap: 3px; flex: 1;">
-            {#each week.contributionDays as day}
-              <div
-                style="width: 100%; aspect-ratio: 1; border-radius: 2px; background: {getContributionColor(day.contributionCount)}; border: 1px solid rgba(0,0,0,0.06); min-width: 12px; min-height: 12px;"
-                title="{day.contributionCount} contributions on {day.date}"
-              ></div>
-            {/each}
+      <!-- Month Labels -->
+      <div style="display: flex; gap: 3px; margin-bottom: 8px; margin-left: 32px;">
+        {#each contributions.weeks as week, index}
+          <div style="flex: 1; font-size: 10px; color: #6b7280; text-align: left;">
+            {#if monthLabels.find(m => m.index === index)}
+              {monthLabels.find(m => m.index === index)?.month}
+            {/if}
           </div>
         {/each}
+      </div>
+
+      <!-- Grid with day labels -->
+      <div style="display: flex; gap: 8px;">
+        <!-- Day Labels -->
+        <div style="display: flex; flex-direction: column; gap: 3px; justify-content: space-around; padding-right: 4px;">
+          {#each ['Mon', 'Wed', 'Fri'] as day, idx}
+            <div style="font-size: 10px; color: #6b7280; height: calc(12px * 2.33); display: flex; align-items: center;">
+              {day}
+            </div>
+          {/each}
+        </div>
+
+        <!-- Contribution squares -->
+        <div style="display: flex; gap: 3px; flex: 1;">
+          {#each contributions.weeks as week}
+            <div style="display: flex; flex-direction: column; gap: 3px; flex: 1;">
+              {#each week.contributionDays as day}
+                <div
+                  style="width: 100%; aspect-ratio: 1; border-radius: 2px; background: {getContributionColor(day.contributionCount)}; border: 1px solid rgba(0,0,0,0.06); min-width: 12px; min-height: 12px;"
+                  title="{day.contributionCount} contributions on {day.date}"
+                ></div>
+              {/each}
+            </div>
+          {/each}
+        </div>
       </div>
 
       <!-- Legend -->
