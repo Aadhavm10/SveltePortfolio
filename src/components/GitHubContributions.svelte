@@ -209,13 +209,9 @@
     max-width: 1200px;
     width: 100%;
     margin: 0 auto;
-    opacity: 0;
-    transition: opacity 600ms ease-out 200ms, box-shadow 300ms ease, transform 300ms ease;
-    cursor: pointer;
-  }
-
-  .contributions-card.mounted {
     opacity: 1;
+    transition: box-shadow 300ms ease, transform 300ms ease;
+    cursor: pointer;
   }
 
   .contributions-card:hover {
