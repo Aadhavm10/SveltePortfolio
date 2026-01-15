@@ -331,8 +331,8 @@
     .about-wrapper {
       flex-direction: row;
       justify-content: space-between;
-      align-items: flex-start;
-      gap: 3rem;
+      align-items: center;
+      gap: 4rem;
       padding: 4rem 4rem;
     }
   }
@@ -355,7 +355,7 @@
   @media (min-width: 1024px) {
     .content-left {
       text-align: left;
-      flex: 0 0 60%;
+      flex: 1;
       max-width: none;
     }
   }
@@ -494,18 +494,17 @@
     width: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
+    justify-content: center;
     align-items: center;
     gap: 1rem;
   }
 
   @media (min-width: 1024px) {
     .content-right {
-      flex: 0 0 40%;
-      max-width: 40%;
+      flex: 1;
+      display: flex;
       align-items: center;
       justify-content: center;
-      padding-left: 0;
     }
   }
 
