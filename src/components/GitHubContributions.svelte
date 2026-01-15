@@ -72,14 +72,14 @@
     </div>
   {:else if contributions}
     <!-- Contributions Grid -->
-    <div style="width: 100%;">
+    <div style="width: 100%; overflow-x: auto;">
       <!-- Simple grid - 7 rows of contribution days -->
-      <div style="display: flex; gap: 2px; flex-wrap: wrap; margin-bottom: 12px;">
+      <div style="display: flex; gap: 2px; margin-bottom: 12px; min-width: fit-content;">
         {#each contributions.weeks as week}
-          <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;">
             {#each week.contributionDays as day}
               <div
-                style="width: 10px; height: 10px; border-radius: 2px; background: {getContributionColor(day.contributionCount)}; border: 1px solid rgba(0,0,0,0.06);"
+                style="width: 11px; height: 11px; border-radius: 2px; background: {getContributionColor(day.contributionCount)}; border: 1px solid rgba(0,0,0,0.06);"
                 title="{day.contributionCount} contributions on {day.date}"
               ></div>
             {/each}
