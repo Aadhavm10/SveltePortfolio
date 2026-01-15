@@ -78,7 +78,14 @@
   }
 </script>
 
-<div class="contributions-card" class:mounted>
+<div
+  class="contributions-card"
+  class:mounted
+  role="button"
+  tabindex="0"
+  onclick={() => window.open('https://github.com/Aadhavm10', '_blank', 'noopener')}
+  onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && window.open('https://github.com/Aadhavm10', '_blank', 'noopener')}
+>
   <!-- Card Header -->
   <div class="card-header">
     <div class="header-left">
@@ -184,11 +191,21 @@
     width: 100%;
     margin: 0 auto;
     opacity: 0;
-    transition: opacity 600ms ease-out 200ms;
+    transition: opacity 600ms ease-out 200ms, box-shadow 300ms ease, transform 300ms ease;
+    cursor: pointer;
   }
 
   .contributions-card.mounted {
     opacity: 1;
+  }
+
+  .contributions-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15), 0 8px 24px rgba(0,0,0,0.12);
+    transform: translateY(-2px);
+  }
+
+  .contributions-card:active {
+    transform: translateY(0);
   }
 
   /* Card Header */
