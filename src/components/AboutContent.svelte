@@ -503,8 +503,9 @@
     .content-right {
       flex: 0 0 40%;
       max-width: 40%;
-      align-items: flex-start;
-      padding-left: 2rem;
+      align-items: center;
+      justify-content: center;
+      padding-left: 0;
     }
   }
 
