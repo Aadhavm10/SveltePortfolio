@@ -40,7 +40,7 @@
   </div>
 
   <div class="playlists-grid">
-    {#each playlists as playlist, index}
+    {#each playlists as playlist}
       <div class="playlist-card">
         <div class="playlist-info">
           <h4 class="playlist-title">{playlist.title}</h4>
@@ -81,22 +81,22 @@
   }
 
   .playlists-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 2rem;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 2rem !important;
   }
 
   @media (min-width: 768px) {
     .playlists-grid {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 2rem;
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 2rem !important;
     }
   }
 
   @media (min-width: 1024px) {
     .playlists-grid {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 2.5rem;
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 2.5rem !important;
     }
   }
 
