@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { fly } from 'svelte/transition';
-
   interface Playlist {
     id: string;
     title: string;
@@ -43,10 +41,7 @@
 
   <div class="playlists-grid">
     {#each playlists as playlist, index}
-      <div
-        class="playlist-card"
-        in:fly={{ x: -50, duration: 800, delay: 1100 + (index * 150) }}
-      >
+      <div class="playlist-card">
         <div class="playlist-info">
           <h4 class="playlist-title">{playlist.title}</h4>
           <p class="playlist-description">{playlist.description}</p>
@@ -91,10 +86,17 @@
     gap: 2rem;
   }
 
-  @media (min-width: 640px) {
+  @media (min-width: 768px) {
     .playlists-grid {
       grid-template-columns: repeat(2, 1fr);
-      gap: 1.5rem;
+      gap: 2rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .playlists-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 2.5rem;
     }
   }
 
