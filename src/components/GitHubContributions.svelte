@@ -74,12 +74,12 @@
     <!-- Contributions Grid -->
     <div style="width: 100%; overflow-x: auto;">
       <!-- Simple grid - 7 rows of contribution days -->
-      <div style="display: flex; gap: 2px; margin-bottom: 12px; min-width: fit-content;">
+      <div style="display: flex; gap: 3px; margin-bottom: 12px;">
         {#each contributions.weeks as week}
-          <div style="display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;">
+          <div style="display: flex; flex-direction: column; gap: 3px; flex: 1;">
             {#each week.contributionDays as day}
               <div
-                style="width: 11px; height: 11px; border-radius: 2px; background: {getContributionColor(day.contributionCount)}; border: 1px solid rgba(0,0,0,0.06);"
+                style="width: 100%; aspect-ratio: 1; border-radius: 2px; background: {getContributionColor(day.contributionCount)}; border: 1px solid rgba(0,0,0,0.06); min-width: 12px; min-height: 12px;"
                 title="{day.contributionCount} contributions on {day.date}"
               ></div>
             {/each}
