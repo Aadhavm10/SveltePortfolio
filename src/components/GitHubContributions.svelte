@@ -216,6 +216,9 @@
     cursor: pointer;
     position: relative;
     z-index: 10;
+    /* Temporary debug - remove later */
+    border: 5px solid red !important;
+    min-height: 200px !important;
   }
 
   .contributions-card:hover {
@@ -291,14 +294,16 @@
 
   /* Grid Container */
   .grid-container {
-    width: 100%;
+    width: 100% !important;
+    display: block !important;
+    visibility: visible !important;
   }
 
   /* Month Labels Row */
   .month-labels-row {
-    display: grid;
-    grid-template-columns: repeat(52, 1fr);
-    gap: 2px;
+    display: grid !important;
+    grid-template-columns: repeat(52, 1fr) !important;
+    gap: 2px !important;
     margin-bottom: 0.125rem;
     padding-left: 2.5rem;
   }
@@ -313,16 +318,16 @@
 
   /* Grid Content Wrapper */
   .grid-content-wrapper {
-    display: flex;
-    gap: 0.5rem;
+    display: flex !important;
+    gap: 0.5rem !important;
   }
 
   /* Day Labels Column */
   .day-labels-column {
-    width: 2.5rem;
-    display: grid;
-    grid-template-rows: repeat(7, 1fr);
-    gap: 2px;
+    width: 2.5rem !important;
+    display: grid !important;
+    grid-template-rows: repeat(7, 1fr) !important;
+    gap: 2px !important;
     font-size: 0.65rem;
     color: rgba(0,0,0,0.5);
     text-align: right;
@@ -340,12 +345,12 @@
 
   /* Contributions Grid */
   .contributions-grid {
-    flex: 1;
-    display: grid;
-    grid-auto-flow: column;
-    grid-template-rows: repeat(7, auto);
-    gap: 2px;
-    overflow-x: auto;
+    flex: 1 !important;
+    display: grid !important;
+    grid-auto-flow: column !important;
+    grid-template-rows: repeat(7, auto) !important;
+    gap: 2px !important;
+    overflow-x: auto !important;
   }
 
   .contribution-day {
@@ -478,10 +483,13 @@
   }
 
   .debug-text {
-    color: #6b7280;
-    font-size: 0.75rem;
+    color: #000000 !important;
+    font-size: 1.5rem !important;
     margin-bottom: 0.5rem;
     text-align: center;
+    background: yellow !important;
+    padding: 1rem !important;
+    font-weight: bold !important;
   }
 
   .retry-button {
