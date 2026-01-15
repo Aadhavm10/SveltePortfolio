@@ -34,6 +34,10 @@
   let musicSection: HTMLElement;
 
   onMount(() => {
+    // Temporarily show GitHub section immediately for debugging
+    githubVisible = true;
+    musicVisible = true;
+
     // Intersection Observer for scroll-triggered animations
     const observer = new IntersectionObserver(
       (entries) => {
