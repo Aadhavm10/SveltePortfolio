@@ -270,11 +270,11 @@
   <!-- GitHub Contributions Section (Full Width) -->
   <div class="github-section" bind:this={githubSection}>
     {#if githubVisible}
-      <div class="section-header" in:fly={{ y: -20, duration: 600, delay: 100 }}>
+      <div class="section-header">
         <h2 class="section-title">GitHub Activity</h2>
         <div class="section-divider"></div>
       </div>
-      <div in:fly={{ y: 50, duration: 1000, delay: 300 }}>
+      <div>
         <GitHubContributions />
       </div>
     {/if}

@@ -202,16 +202,20 @@
 
 <style>
   .contributions-card {
-    background: #ffffff;
+    background: #ffffff !important;
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 4px 12px rgba(0,0,0,0.08);
     padding: 0.375rem 1rem;
     max-width: 1200px;
     width: 100%;
     margin: 0 auto;
-    opacity: 1;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
     transition: box-shadow 300ms ease, transform 300ms ease;
     cursor: pointer;
+    position: relative;
+    z-index: 10;
   }
 
   .contributions-card:hover {
