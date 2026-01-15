@@ -63,29 +63,29 @@
 </div>
 
 <style>
-  .playlist-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 2rem;
+  :global(.playlist-grid) {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 2rem !important;
   }
 
   @media (min-width: 768px) {
-    .playlist-grid {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 2rem;
+    :global(.playlist-grid) {
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 2rem !important;
     }
   }
 
   @media (min-width: 1024px) {
-    .playlist-grid {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 2.5rem;
+    :global(.playlist-grid) {
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 2.5rem !important;
     }
   }
 
   @media (max-width: 767px) {
-    .playlist-grid {
-      gap: 1.5rem;
+    :global(.playlist-grid) {
+      gap: 1.5rem !important;
     }
   }
 </style>
