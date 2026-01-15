@@ -46,7 +46,7 @@
           }
         });
       },
-      { threshold: 0.1 }
+      { threshold: 0.2 }
     );
 
     if (githubSection) observer.observe(githubSection);
@@ -266,7 +266,11 @@
   <!-- GitHub Contributions Section (Full Width) -->
   <div class="github-section" bind:this={githubSection}>
     {#if githubVisible}
-      <div in:fly={{ y: 50, duration: 1000, delay: 200 }}>
+      <div class="section-header" in:fly={{ y: -20, duration: 600, delay: 100 }}>
+        <h2 class="section-title">GitHub Activity</h2>
+        <div class="section-divider"></div>
+      </div>
+      <div in:fly={{ y: 50, duration: 1000, delay: 300 }}>
         <GitHubContributions />
       </div>
     {/if}
@@ -275,7 +279,11 @@
   <!-- Apple Music Playlists Section (Full Width) -->
   <div class="music-section" bind:this={musicSection}>
     {#if musicVisible}
-      <div in:fly={{ y: 50, duration: 1000, delay: 200 }}>
+      <div class="section-header" in:fly={{ y: -20, duration: 600, delay: 100 }}>
+        <h2 class="section-title">My Playlists</h2>
+        <div class="section-divider"></div>
+      </div>
+      <div in:fly={{ y: 50, duration: 1000, delay: 300 }}>
         <AppleMusicPlaylists />
       </div>
     {/if}
@@ -293,14 +301,14 @@
     width: 100%;
     position: relative;
     z-index: 10;
-    gap: 5rem;
+    gap: 0;
   }
 
   @media (min-width: 1024px) {
     .hero-content {
       padding: 0 2rem;
       margin-top: 4rem;
-      gap: 8rem;
+      gap: 0;
     }
   }
 
@@ -311,7 +319,7 @@
     width: 100%;
     max-width: 1400px;
     margin: 0 auto;
-    padding: 0 3rem;
+    padding: 3rem 3rem;
     gap: 3rem;
   }
 
@@ -321,7 +329,7 @@
       justify-content: space-between;
       align-items: flex-start;
       gap: 3rem;
-      padding: 0 4rem;
+      padding: 4rem 4rem;
     }
   }
 
@@ -352,12 +360,12 @@
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 3rem;
+    padding: 3rem 3rem;
   }
 
   @media (min-width: 1024px) {
     .github-section {
-      padding: 0 4rem;
+      padding: 4rem 4rem;
     }
   }
 
@@ -365,12 +373,12 @@
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 3rem;
+    padding: 3rem 3rem;
   }
 
   @media (min-width: 1024px) {
     .music-section {
-      padding: 0 4rem;
+      padding: 4rem 4rem;
     }
   }
 
@@ -380,7 +388,8 @@
     align-items: center;
     text-align: center;
     gap: 0.75rem;
-    margin-bottom: 2rem;
+    margin-bottom: 0;
+    padding-top: 2rem;
     font-size: 1.875rem;
     font-weight: 700;
     color: white;
@@ -404,6 +413,8 @@
   @media (min-width: 1024px) {
     .title-section {
       font-size: 3.75rem;
+      margin-bottom: 0;
+      padding-top: 4rem;
     }
   }
 
@@ -598,5 +609,44 @@
     .drag-hint {
       font-size: 0.875rem;
     }
+  }
+
+  /* Section Title Styles */
+  .section-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .section-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin: 0 0 1rem 0;
+  }
+
+  @media (min-width: 640px) {
+    .section-title {
+      font-size: 2rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .section-title {
+      font-size: 2.5rem;
+    }
+
+    .section-header {
+      margin-bottom: 2rem;
+    }
+  }
+
+  .section-divider {
+    width: 80px;
+    height: 3px;
+    margin: 0 auto;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
   }
 </style>
