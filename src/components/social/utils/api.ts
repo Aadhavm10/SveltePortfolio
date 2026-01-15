@@ -122,12 +122,19 @@ export async function fetchGitHubContributions(): Promise<GitHubContributions> {
   const cached = apiCache.get<GitHubContributions>(cacheKey);
   if (cached) return cached;
 
+  // Log environment check
+  console.log('[GitHub API] Token present:', !!GITHUB_TOKEN);
+  console.log('[GitHub API] Username:', GITHUB_USERNAME);
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json'
   };
 
   if (GITHUB_TOKEN) {
     headers['Authorization'] = `Bearer ${GITHUB_TOKEN}`;
+  } else {
+    console.error('[GitHub API] No token found - GraphQL API requires authentication');
+    throw new Error('GitHub token not configured. Please add PUBLIC_GITHUB_TOKEN to environment variables.');
   }
 
   const query = `
@@ -160,18 +167,36 @@ export async function fetchGitHubContributions(): Promise<GitHubContributions> {
     });
 
     if (!response.ok) {
-      throw new Error('GitHub GraphQL request failed');
+      const errorText = await response.text();
+      console.error('[GitHub API] Response not OK:', response.status, errorText);
+      throw new Error(`GitHub GraphQL request failed: ${response.status} ${response.statusText}`);
     }
 
     const result = await response.json();
+
+    // Check for GraphQL errors
+    if (result.errors) {
+      console.error('[GitHub API] GraphQL errors:', result.errors);
+      throw new Error(`GitHub API error: ${result.errors[0]?.message || 'Unknown error'}`);
+    }
+
+    if (!result.data?.user?.contributionsCollection?.contributionCalendar) {
+      console.error('[GitHub API] Unexpected response structure:', result);
+      throw new Error('Invalid response from GitHub API');
+    }
+
     const data = result.data.user.contributionsCollection.contributionCalendar;
 
     // Cache the result
     apiCache.set(cacheKey, data);
 
+    console.log('[GitHub API] Successfully fetched contributions:', data.totalContributions);
     return data;
   } catch (error) {
-    console.error('GitHub Contributions Error:', error);
+    console.error('[GitHub API] Fetch error:', error);
+    if (error instanceof Error) {
+      throw error;
+    }
     throw new Error('Failed to fetch GitHub contributions');
   }
 }
