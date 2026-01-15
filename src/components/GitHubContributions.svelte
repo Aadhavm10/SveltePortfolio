@@ -10,7 +10,7 @@
   let mounted = $state(false);
 
   // Generate month labels dynamically from contribution data
-  const monthLabels = $derived(() => {
+  const monthLabels = $derived((() => {
     if (!contributions) return [];
 
     const labels: Array<{month: string, index: number}> = [];
@@ -27,21 +27,25 @@
     });
 
     return labels;
-  });
+  })());
 
   // Day labels - 7 rows matching GitHub (Sun at top, Sat at bottom)
   // Show labels only on Mon, Wed, Fri like GitHub does
   const dayLabels = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
 
   async function loadContributions() {
+    console.log('[GitHubContributions] Starting load...');
     loading = true;
     error = null;
     try {
       contributions = await fetchGitHubContributions();
+      console.log('[GitHubContributions] Loaded successfully:', contributions);
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load contributions';
+      console.error('[GitHubContributions] Load failed:', error);
     } finally {
       loading = false;
+      console.log('[GitHubContributions] Load complete. Loading:', loading, 'Error:', error, 'Has data:', !!contributions);
     }
   }
 
@@ -103,6 +107,7 @@
   {#if loading}
     <!-- Loading Skeleton -->
     <div class="loading-skeleton">
+      <p class="debug-text">Loading GitHub contributions...</p>
       <div class="skeleton-grid">
         {#each Array(52) as _}
           {#each Array(7) as _}
@@ -115,6 +120,13 @@
     <!-- Error State -->
     <div class="error-state">
       <p class="error-message">{error}</p>
+      <p class="error-hint">
+        {#if error.includes('token')}
+          Check that PUBLIC_GITHUB_TOKEN is set in your environment variables.
+        {:else}
+          Unable to load GitHub activity. Please check console for details.
+        {/if}
+      </p>
       <button class="retry-button" onclick={loadContributions}>
         Retry
       </button>
@@ -122,6 +134,8 @@
   {:else if contributions}
     <!-- Grid Container -->
     <div class="grid-container">
+      <!-- Debug info (remove later) -->
+      <p class="debug-text">Showing {contributions.totalContributions} contributions</p>
       <!-- Month Labels Row -->
       <div class="month-labels-row">
         {#each monthLabels as {month, index}}
@@ -166,6 +180,11 @@
         <div class="legend-item level-4" title="10+ contributions"></div>
         <span class="legend-label">More</span>
       </div>
+    </div>
+  {:else}
+    <!-- Unexpected state -->
+    <div class="error-state">
+      <p class="debug-text">Unexpected state: loading={loading}, error={error}, hasContributions={!!contributions}</p>
     </div>
   {/if}
 </div>
@@ -449,7 +468,20 @@
   .error-message {
     color: #dc2626;
     font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .error-hint {
+    color: #6b7280;
+    font-size: 0.75rem;
     margin-bottom: 1rem;
+  }
+
+  .debug-text {
+    color: #6b7280;
+    font-size: 0.75rem;
+    margin-bottom: 0.5rem;
+    text-align: center;
   }
 
   .retry-button {
