@@ -117,6 +117,8 @@
   function handleTouchMove(e: TouchEvent) {
     if (!isDragging || !draggedCard) return;
 
+    e.preventDefault(); // Prevent page scroll during drag
+
     const touch = e.touches[0];
     dragOffsetX = touch.clientX - dragStartX;
     dragOffsetY = touch.clientY - dragStartY;
@@ -352,6 +354,15 @@
     }
   }
 
+  /* Tablet breakpoint - keep text centered */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .content-left {
+      text-align: center;
+      max-width: 700px;
+      gap: 1.5rem;
+    }
+  }
+
   @media (min-width: 1024px) {
     .content-left {
       text-align: left;
@@ -510,9 +521,17 @@
 
   .stack-container {
     position: relative;
-    width: 408px;
-    height: 408px;
+    width: min(408px, 90vw);
+    height: min(408px, 90vw);
+    max-width: 408px;
     perspective: 600px;
+  }
+
+  @media (max-width: 480px) {
+    .stack-container {
+      width: min(340px, 85vw);
+      height: min(340px, 85vw);
+    }
   }
 
   .card-wrapper {

@@ -56,10 +56,11 @@
   }
 
   // Calculate grid layout
+  let colHeights: number[] = [];
   $: grid = (() => {
     if (!containerWidth) return [];
 
-    const colHeights = new Array(columns).fill(0);
+    colHeights = new Array(columns).fill(0);
     const columnWidth = containerWidth / columns;
 
     return items.map(child => {
@@ -73,6 +74,16 @@
       return { ...child, x, y, w: columnWidth, h: height };
     });
   })();
+
+  // Calculate total grid height and dispatch event
+  $: totalGridHeight = colHeights.length > 0 ? Math.max(...colHeights) + 30 : 0;
+
+  $: if (totalGridHeight > 0 && containerRef) {
+    const event = new CustomEvent('heightCalculated', {
+      detail: { height: totalGridHeight }
+    });
+    containerRef.dispatchEvent(event);
+  }
 
   function loadImage(src: string): Promise<void> {
     return new Promise<void>(resolve => {
@@ -252,7 +263,7 @@
   });
 </script>
 
-<div bind:this={containerRef} class="list">
+<div bind:this={containerRef} class="list masonry-container">
   {#each grid as item (item.id)}
     <div
       data-key={item.id}

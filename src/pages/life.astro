@@ -139,7 +139,7 @@ const items = [
       }
 
       .masonry-wrapper {
-        min-height: 950px;
+        min-height: 400px; /* Reduced initial height - will be set dynamically */
         margin-bottom: 1rem;
         position: relative;
       }
@@ -261,5 +261,19 @@ const items = [
         Made with Svelte, Astro, and Three.js
       </div>
     </div>
+
+    <script>
+      // Update masonry wrapper height dynamically
+      const masonryWrapper = document.querySelector('.masonry-wrapper');
+      const masonryContainer = document.querySelector('.masonry-container');
+
+      if (masonryContainer) {
+        masonryContainer.addEventListener('heightCalculated', ((e: CustomEvent) => {
+          if (masonryWrapper) {
+            masonryWrapper.style.minHeight = `${e.detail.height}px`;
+          }
+        }) as EventListener);
+      }
+    </script>
   </body>
 </html>

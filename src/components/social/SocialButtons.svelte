@@ -113,7 +113,7 @@
       <GithubIcon class="icon" />
       <div class="label-container">
         <span class="label">GitHub</span>
-        <span class="sublabel">Hover to preview</span>
+        <span class="sublabel">{isMobile ? 'Tap to preview' : 'Hover to preview'}</span>
       </div>
     </button>
 
@@ -128,7 +128,7 @@
       <LinkedInIcon class="icon" />
       <div class="label-container">
         <span class="label">LinkedIn</span>
-        <span class="sublabel">Hover to preview</span>
+        <span class="sublabel">{isMobile ? 'Tap to preview' : 'Hover to preview'}</span>
       </div>
     </button>
   </div>

@@ -107,28 +107,30 @@
       </div>
 
       <!-- Grid with day labels -->
-      <div style="display: flex; gap: 8px;">
-        <!-- Day Labels -->
-        <div style="display: flex; flex-direction: column; gap: 3px; justify-content: space-around; padding-right: 4px;">
-          {#each ['Mon', 'Wed', 'Fri'] as day, idx}
-            <div style="font-size: 10px; color: #6b7280; height: calc(12px * 2.33); display: flex; align-items: center;">
-              {day}
-            </div>
-          {/each}
-        </div>
+      <div class="contribution-grid">
+        <div style="display: flex; gap: 8px;">
+          <!-- Day Labels -->
+          <div style="display: flex; flex-direction: column; gap: 3px; justify-content: space-around; padding-right: 4px;">
+            {#each ['Mon', 'Wed', 'Fri'] as day, idx}
+              <div style="font-size: 10px; color: #6b7280; height: calc(12px * 2.33); display: flex; align-items: center;">
+                {day}
+              </div>
+            {/each}
+          </div>
 
-        <!-- Contribution squares -->
-        <div style="display: flex; gap: 3px; flex: 1;">
-          {#each contributions.weeks as week}
-            <div style="display: flex; flex-direction: column; gap: 3px; flex: 1;">
-              {#each week.contributionDays as day}
-                <div
-                  style="width: 100%; aspect-ratio: 1; border-radius: 2px; background: {getContributionColor(day.contributionCount)}; border: 1px solid rgba(0,0,0,0.06); min-width: 12px; min-height: 12px;"
-                  title="{day.contributionCount} contributions on {day.date}"
-                ></div>
-              {/each}
-            </div>
-          {/each}
+          <!-- Contribution squares -->
+          <div style="display: flex; gap: 3px; flex: 1;">
+            {#each contributions.weeks as week}
+              <div style="display: flex; flex-direction: column; gap: 3px; flex: 1;">
+                {#each week.contributionDays as day}
+                  <div
+                    style="width: 100%; aspect-ratio: 1; border-radius: 2px; background: {getContributionColor(day.contributionCount)}; border: 1px solid rgba(0,0,0,0.06); min-width: 12px; min-height: 12px;"
+                    title="{day.contributionCount} contributions on {day.date}"
+                  ></div>
+                {/each}
+              </div>
+            {/each}
+          </div>
         </div>
       </div>
 
@@ -145,3 +147,27 @@
     </div>
   {/if}
 </div>
+
+<style>
+  /* Make grid responsive on mobile */
+  @media (max-width: 640px) {
+    :global(.contribution-grid) {
+      transform: scale(0.85);
+      transform-origin: left top;
+    }
+  }
+
+  @media (max-width: 480px) {
+    :global(.contribution-grid) {
+      transform: scale(0.7);
+      transform-origin: left top;
+    }
+  }
+
+  @media (max-width: 380px) {
+    :global(.contribution-grid) {
+      transform: scale(0.6);
+      transform-origin: left top;
+    }
+  }
+</style>

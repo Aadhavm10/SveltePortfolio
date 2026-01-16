@@ -61,6 +61,8 @@
   let bubblesRef: (HTMLAnchorElement | HTMLDivElement)[] = [];
   let labelRefs: HTMLSpanElement[] = [];
   let hoveredItemIndex: number | null = null;
+  let touchStartTime = 0;
+  let touchTimeout: ReturnType<typeof setTimeout> | null = null;
 
   $: containerClassName = useFixedPosition ? 'bubble-menu fixed' : 'bubble-menu absolute';
 
@@ -70,8 +72,47 @@
     isMenuOpen = nextState;
   }
 
+  function handleToggleTouchStart(e: TouchEvent) {
+    touchStartTime = Date.now();
+    // Prevent ghost clicks
+    e.preventDefault();
+  }
+
+  function handleToggleTouchEnd(e: TouchEvent) {
+    const touchDuration = Date.now() - touchStartTime;
+    // Only trigger if touch was quick (not a scroll)
+    if (touchDuration < 200) {
+      handleToggle();
+    }
+    e.preventDefault();
+  }
+
+  function handleOverlayClick(e: MouseEvent) {
+    // Close menu when clicking overlay background (not items)
+    if (e.target === overlayRef) {
+      isMenuOpen = false;
+    }
+  }
+
+  function handleOverlayTouch(e: TouchEvent) {
+    if (e.target === overlayRef) {
+      isMenuOpen = false;
+      e.preventDefault();
+    }
+  }
+
   function handleItemTouch(idx: number) {
     hoveredItemIndex = idx;
+  }
+
+  function handleItemTouchDebounced(idx: number, e: TouchEvent) {
+    if (touchTimeout) clearTimeout(touchTimeout);
+
+    touchTimeout = setTimeout(() => {
+      handleItemTouch(idx);
+    }, 50); // 50ms debounce
+
+    e.preventDefault();
   }
 
   function handleItemTouchEnd() {
@@ -176,6 +217,8 @@
     type="button"
     class="bubble toggle-bubble menu-btn {isMenuOpen ? 'open' : ''}"
     on:click={handleToggle}
+    on:touchstart={handleToggleTouchStart}
+    on:touchend={handleToggleTouchEnd}
     aria-label={menuAriaLabel}
     aria-pressed={isMenuOpen}
     style="background: {menuBg};"
@@ -190,6 +233,8 @@
     bind:this={overlayRef}
     class="bubble-menu-items {useFixedPosition ? 'fixed' : 'absolute'}"
     aria-hidden={!isMenuOpen}
+    on:click={handleOverlayClick}
+    on:touchend={handleOverlayTouch}
   >
     <ul class="pill-list" role="menu" aria-label="Menu links">
       {#each items as item, idx}
@@ -204,8 +249,9 @@
               bind:this={bubblesRef[idx]}
               on:mouseenter={() => hoveredItemIndex = idx}
               on:mouseleave={() => hoveredItemIndex = null}
-              on:touchstart={() => handleItemTouch(idx)}
+              on:touchstart={(e) => handleItemTouchDebounced(idx, e)}
               on:touchend={handleItemTouchEnd}
+              on:touchcancel={handleItemTouchEnd}
             >
               <span class="pill-label" bind:this={labelRefs[idx]}>
                 {hoveredItemIndex === idx ? '' : item.label}
@@ -392,6 +438,7 @@
     align-items: center;
     justify-content: center;
     pointer-events: none;
+    touch-action: none;
     z-index: 998;
   }
 
@@ -517,6 +564,8 @@
   /* Sub-items styles */
   :global(.bubble-menu-items .pill-link-parent) {
     cursor: default;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
   }
 
   :global(.bubble-menu-items .pill-link-parent.hovered) {
