@@ -446,7 +446,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    pointer-events: none;
+    pointer-events: auto; /* Block background clicks when menu is open */
     touch-action: none;
     z-index: 998;
   }
@@ -512,6 +512,7 @@
     box-sizing: border-box;
     white-space: nowrap;
     overflow: hidden;
+    pointer-events: auto; /* Ensure menu items are clickable */
   }
 
   @media (min-width: 900px) {
@@ -575,6 +576,7 @@
     cursor: default;
     touch-action: manipulation;
     -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    pointer-events: auto; /* Ensure connect bubble is interactive */
   }
 
   :global(.bubble-menu-items .pill-link-parent.hovered) {
@@ -596,6 +598,7 @@
     text-decoration: none;
     padding: 0.5rem 1rem;
     transition: opacity 0.2s ease;
+    pointer-events: auto; /* Ensure subitem links are clickable */
   }
 
   :global(.bubble-menu-items .sub-item-link:hover) {
