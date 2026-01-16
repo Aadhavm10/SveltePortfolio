@@ -94,11 +94,19 @@
     }
   }
 
-  function handleOverlayTouch(e: TouchEvent) {
-    if (e.target === overlayRef) {
+  let overlayTouchStartTarget: EventTarget | null = null;
+
+  function handleOverlayTouchStart(e: TouchEvent) {
+    overlayTouchStartTarget = e.target;
+  }
+
+  function handleOverlayTouchEnd(e: TouchEvent) {
+    // Only close if touch started AND ended on overlay background (not bubbled from children)
+    if (e.target === overlayRef && overlayTouchStartTarget === overlayRef) {
       isMenuOpen = false;
       e.preventDefault();
     }
+    overlayTouchStartTarget = null;
   }
 
   function handleItemTouch(idx: number) {
@@ -112,7 +120,7 @@
       handleItemTouch(idx);
     }, 50); // 50ms debounce
 
-    e.preventDefault();
+    // Don't prevent default - let subitems links work
   }
 
   function handleItemTouchEnd() {
@@ -234,7 +242,8 @@
     class="bubble-menu-items {useFixedPosition ? 'fixed' : 'absolute'}"
     aria-hidden={!isMenuOpen}
     on:click={handleOverlayClick}
-    on:touchend={handleOverlayTouch}
+    on:touchstart={handleOverlayTouchStart}
+    on:touchend={handleOverlayTouchEnd}
   >
     <ul class="pill-list" role="menu" aria-label="Menu links">
       {#each items as item, idx}
