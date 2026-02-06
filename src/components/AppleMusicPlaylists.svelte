@@ -34,58 +34,201 @@
   ];
 </script>
 
-<div style="width: 100%;">
-  <div style="margin-bottom: 1.5rem;">
-    <h3 style="font-size: 1rem; font-weight: 600; color: rgba(255, 255, 255, 0.9); margin: 0;">Music Playlists</h3>
-  </div>
-
+<div class="playlists-wrapper">
   <div class="playlist-grid">
-    {#each playlists as playlist}
-      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-          <h4 style="font-size: 0.875rem; font-weight: 600; color: rgba(255, 255, 255, 0.9); margin: 0; line-height: 1.4;">{playlist.title}</h4>
-          <p style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.6); margin: 0; font-style: italic; line-height: 1.3;">{playlist.description}</p>
+    {#each playlists as playlist, idx}
+      <article 
+        class="playlist-card"
+        role="region"
+        aria-label="Playlist: {playlist.title}"
+        style="--card-index: {idx};"
+      >
+        <div class="card-corner"></div>
+        <div class="card-header">
+          <div class="header-accent"></div>
+          <div class="card-info">
+            <h3 class="playlist-title">{playlist.title}</h3>
+            <p class="playlist-description">{playlist.description}</p>
+          </div>
         </div>
-        <iframe
-          src={playlist.embedUrl}
-          height="450"
-          frameborder="0"
-          allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write"
-          sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
-          loading="lazy"
-          title="Apple Music playlist: {playlist.title}"
-          aria-label="Apple Music playlist: {playlist.title}"
-          style="width: 100%; height: 450px; border: none; border-radius: 0.5rem; background: rgba(0, 0, 0, 0.2);"
-        ></iframe>
-      </div>
+        <div class="card-player">
+          <iframe
+            src={playlist.embedUrl}
+            height="450"
+            frameborder="0"
+            allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write"
+            sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
+            loading="lazy"
+            title="Apple Music playlist: {playlist.title}"
+            aria-label="Apple Music playlist: {playlist.title}"
+          ></iframe>
+        </div>
+      </article>
     {/each}
   </div>
 </div>
 
 <style>
-  :global(.playlist-grid) {
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-    gap: 2rem !important;
+  /* CSS Variables */
+  :root {
+    --accent-orange: #ff6b35;
+    --accent-orange-hover: #ff8254;
+    --bg-black: #0a0a0a;
+    --bg-card: #ffffff;
+    --text-white: #0a0a0a;
+    --text-gray: #666666;
+    --border-color: rgba(0, 0, 0, 0.1);
   }
 
-  @media (min-width: 768px) {
-    :global(.playlist-grid) {
-      grid-template-columns: repeat(2, 1fr) !important;
-      gap: 2rem !important;
+  .playlists-wrapper {
+    width: 100%;
+  }
+
+  .playlist-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 60px;
+  }
+
+  .playlist-card {
+    background: var(--bg-card);
+    border: 2px solid var(--border-color);
+    position: relative;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+    animation: cardFadeIn 0.8s ease-out forwards;
+    animation-delay: calc(var(--card-index) * 0.15s);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  }
+
+  @keyframes cardFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(40px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
     }
   }
 
-  @media (min-width: 1024px) {
-    :global(.playlist-grid) {
-      grid-template-columns: repeat(2, 1fr) !important;
-      gap: 2.5rem !important;
-    }
+  .playlist-card:hover {
+    border-color: var(--accent-orange);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(255, 107, 53, 0.2);
+  }
+
+  .card-corner {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 40px;
+    height: 40px;
+    background: var(--accent-orange);
+    clip-path: polygon(100% 0, 0 0, 100% 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .playlist-card:hover .card-corner {
+    opacity: 1;
+  }
+
+  .card-header {
+    padding: 32px 32px 24px;
+    position: relative;
+  }
+
+  .header-accent {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 6px;
+    height: 100%;
+    background: var(--accent-orange);
+    transform: scaleY(0);
+    transform-origin: top;
+    transition: transform 0.4s ease;
+  }
+
+  .playlist-card:hover .header-accent {
+    transform: scaleY(1);
+  }
+
+  .card-info {
+    position: relative;
+  }
+
+  .playlist-title {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--text-white);
+    margin: 0 0 8px 0;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  .playlist-description {
+    font-size: 16px;
+    color: var(--text-gray);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .card-player {
+    padding: 0 32px 32px;
+  }
+
+  .card-player iframe {
+    width: 100%;
+    height: 450px;
+    border: none;
+    border-radius: 0;
+    background: rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s ease;
+  }
+
+  .playlist-card:hover .card-player iframe {
+    transform: scale(1.02);
   }
 
   @media (max-width: 767px) {
-    :global(.playlist-grid) {
-      gap: 1.5rem !important;
+    .playlist-grid {
+      gap: 32px;
+    }
+
+    .card-header {
+      padding: 24px 24px 16px;
+    }
+
+    .card-player {
+      padding: 0 24px 24px;
+    }
+
+    .playlist-title {
+      font-size: 20px;
+    }
+
+    .playlist-description {
+      font-size: 14px;
+    }
+
+    .card-player iframe {
+      height: 400px;
+    }
+  }
+
+  /* Reduced Motion */
+  @media (prefers-reduced-motion: reduce) {
+    .playlist-card {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+
+    .playlist-card:hover,
+    .card-player iframe {
+      transform: none;
     }
   }
 </style>

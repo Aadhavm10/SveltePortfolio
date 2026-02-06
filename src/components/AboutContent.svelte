@@ -1,675 +1,1118 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { fade, fly } from 'svelte/transition';
+  import { Motion } from 'svelte-motion';
   import GitHubContributions from './GitHubContributions.svelte';
   import AppleMusicPlaylists from './AppleMusicPlaylists.svelte';
 
-  // Card data
-  const techStackCards = [
-    { id: 2, img: "/aboutImages/HASA.JPG" },
-    { id: 3, img: "/aboutImages/Soccer.JPG" },
-    { id: 4, img: "/aboutImages/IMG_3158.JPG" },
-    { id: 5, img: "/aboutImages/NAV05745.JPG" },
-    { id: 1, img: "/aboutImages/IMG_4152.JPG" }
+  const backgroundImages = [
+    "/aboutImages/HASA.JPG",
+    "/aboutImages/Soccer.JPG",
+    "/aboutImages/IMG_3158.JPG",
+    "/aboutImages/NAV05745.JPG",
+    "/aboutImages/IMG_4152.JPG"
   ];
 
-  let cards = [...techStackCards];
-  let draggedCard: { id: number; img: string } | null = null;
-  let dragStartX = 0;
-  let dragStartY = 0;
-  let dragOffsetX = 0;
-  let dragOffsetY = 0;
-  let isDragging = false;
-
-  // Decrypted text state
-  let displayText = '';
-  let isTextComplete = false;
-  const targetText = "Computer Science Student at the University of Texas at Dallas";
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
-
-  // Scroll-triggered animation states
-  let githubVisible = false;
-  let musicVisible = false;
-  let githubSection: HTMLElement;
-  let musicSection: HTMLElement;
-
-  onMount(() => {
-    // Temporarily show GitHub section immediately for debugging
-    githubVisible = true;
-    musicVisible = true;
-
-    // Intersection Observer for scroll-triggered animations
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.target === githubSection && entry.isIntersecting) {
-            githubVisible = true;
-          }
-          if (entry.target === musicSection && entry.isIntersecting) {
-            musicVisible = true;
-          }
-        });
-      },
-      { threshold: 0.2 }
-    );
-
-    if (githubSection) observer.observe(githubSection);
-    if (musicSection) observer.observe(musicSection);
-
-    // Decrypted text animation
-    let iteration = 0;
-    const interval = setInterval(() => {
-      displayText = targetText
-        .split('')
-        .map((char, index) => {
-          if (char === ' ') return ' ';
-          if (index < iteration) return targetText[index];
-          return chars[Math.floor(Math.random() * chars.length)];
-        })
-        .join('');
-
-      if (iteration >= targetText.length) {
-        isTextComplete = true;
-        clearInterval(interval);
-      }
-
-      iteration += 1;
-    }, 15);
-
-    return () => {
-      observer.disconnect();
-      clearInterval(interval);
-    };
-  });
-
-  function handleMouseDown(e: MouseEvent, card: { id: number; img: string }) {
-    const topCard = cards[cards.length - 1];
-    if (card.id !== topCard.id) return;
-
-    isDragging = true;
-    draggedCard = card;
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    dragOffsetX = 0;
-    dragOffsetY = 0;
+  // Animation visibility states
+  let visibleSections = new Set<string>();
+  
+  function isVisible(section: string): boolean {
+    return visibleSections.has(section);
   }
 
-  function handleTouchStart(e: TouchEvent, card: { id: number; img: string }) {
-    const topCard = cards[cards.length - 1];
-    if (card.id !== topCard.id) return;
-
-    isDragging = true;
-    draggedCard = card;
-    const touch = e.touches[0];
-    dragStartX = touch.clientX;
-    dragStartY = touch.clientY;
-    dragOffsetX = 0;
-    dragOffsetY = 0;
-  }
-
-  function handleMouseMove(e: MouseEvent) {
-    if (!isDragging || !draggedCard) return;
-
-    dragOffsetX = e.clientX - dragStartX;
-    dragOffsetY = e.clientY - dragStartY;
-  }
-
-  function handleTouchMove(e: TouchEvent) {
-    if (!isDragging || !draggedCard) return;
-
-    e.preventDefault(); // Prevent page scroll during drag
-
-    const touch = e.touches[0];
-    dragOffsetX = touch.clientX - dragStartX;
-    dragOffsetY = touch.clientY - dragStartY;
-  }
-
-  function handleMouseUp() {
-    if (!isDragging || !draggedCard) return;
-
-    const dragDistance = Math.sqrt(dragOffsetX ** 2 + dragOffsetY ** 2);
-
-    if (dragDistance > 60) {
-      sendToBack(draggedCard.id);
-    }
-
-    isDragging = false;
-    draggedCard = null;
-    dragOffsetX = 0;
-    dragOffsetY = 0;
-  }
-
-  function handleTouchEnd() {
-    handleMouseUp();
-  }
+  // Card stack with all 5 images
+  let stack = backgroundImages.map((src, index) => ({
+    id: index,
+    src
+  }));
 
   function sendToBack(id: number) {
-    const index = cards.findIndex((card) => card.id === id);
+    const index = stack.findIndex(card => card.id === id);
     if (index !== -1) {
-      const newCards = [...cards];
-      const [card] = newCards.splice(index, 1);
-      newCards.unshift(card);
-      cards = newCards;
+      const newStack = [...stack];
+      const [card] = newStack.splice(index, 1);
+      newStack.unshift(card);
+      stack = newStack;
     }
   }
 
-  let hoveredCard: number | null = null;
+  onMount(() => {
+    // Make hero visible immediately
+    visibleSections.add('hero');
+    visibleSections = visibleSections;
 
-  function getCardStyle(card: { id: number; img: string }, index: number) {
-    const isTopCard = index === cards.length - 1;
-    const isDraggedCard = draggedCard?.id === card.id && isDragging;
+    // Enhanced scroll-triggered animations
+    const observerOptions = {
+      root: null,
+      rootMargin: '0px 0px -100px 0px',
+      threshold: 0.1
+    };
 
-    const baseRotate = (cards.length - index - 1) * 4;
-    const baseScale = 1 + index * 0.06 - cards.length * 0.06;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const id = entry.target.getAttribute('data-animate-id');
+          if (id) {
+            visibleSections.add(id);
+            visibleSections = visibleSections; // trigger reactivity
+          }
+        }
+      });
+    }, observerOptions);
 
-    if (isDraggedCard) {
-      const rotateY = (dragOffsetX / 100) * -20;
-      const rotateX = (dragOffsetY / 100) * 20;
+    // Observe all animated sections
+    setTimeout(() => {
+      document.querySelectorAll('[data-animate-id]').forEach((el) => {
+        observer.observe(el);
+      });
+    }, 100);
 
-      return `
-        transform:
-          translate(${dragOffsetX}px, ${dragOffsetY}px)
-          rotateZ(${baseRotate + (dragOffsetX / 20)}deg)
-          rotateX(${rotateX}deg)
-          rotateY(${rotateY}deg)
-          scale(1.15);
-        transform-origin: 50% 50%;
-        transition: none;
-        z-index: 1000;
-        cursor: grabbing;
-      `;
-    }
+    return () => observer.disconnect();
+  });
 
-    return `
-      transform:
-        rotateZ(${baseRotate}deg)
-        scale(${baseScale});
-      transform-origin: 90% 90%;
-      transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-      cursor: ${isTopCard ? 'grab' : 'default'};
-      pointer-events: ${isTopCard ? 'auto' : 'none'};
-    `;
-  }
-
-  function getCurrentCardNumber(): number {
-    const topCard = cards[cards.length - 1];
-    return techStackCards.findIndex(c => c.id === topCard.id) + 1;
-  }
 </script>
 
-<svelte:window
-  on:mousemove={handleMouseMove}
-  on:mouseup={handleMouseUp}
-  on:touchmove={handleTouchMove}
-  on:touchend={handleTouchEnd}
-/>
+<div class="semplice-container">
+  <!-- Decorative Top Bar -->
+  <div class="decorative-bar"></div>
 
-<div class="hero-content">
-  <!-- Title -->
-  <div class="title-section" in:fly={{ y: -30, duration: 800, delay: 500 }}>
-    <span class="title-text">
-      Aadhav
-      <span class="title-gradient">Manimurugan</span>
-    </span>
-  </div>
+  <!-- Hero Section -->
+  <section class="hero-section animate-section" data-animate-id="hero" class:visible={isVisible('hero')}>
+    <h1 class="hero-title">
+      <span class="hero-line">AADHAV</span>
+      <span class="hero-line hero-line-accent">MANIMURUGAN</span>
+    </h1>
+    <p class="hero-subtitle">Computer Science Student at University of Texas at Dallas</p>
+  </section>
 
-  <!-- About Section: Text + Photos together -->
-  <div class="about-wrapper">
-    <div class="content-left">
-      <!-- About me -->
-      <div class="about-cards" in:fly={{ x: -50, duration: 800, delay: 700 }}>
-        <h3 class="about-heading">About me</h3>
-        <div class="info-card">
-          <p class="card-text">
-            Full-Stack Developer and Machine Learning Engineer based in Dallas, Texas. I love solving problems through code and creating software that people actually use.
-          </p>
-          <p class="card-text">
-            Currently studying Computer Science at the University of Texas at Dallas, where I'm exploring everything from web development to AI. I'm passionate about building tools that make a real impact and learning new technologies along the way.
-          </p>
-          <p class="card-text">
-            Outside of tech, I enjoy playing soccer and basketball, watching movies, listening to music, and spending time with friends. I'm always looking for the next challenge, whether it's on the field or in front of a screen.
-          </p>
-        </div>
+  <!-- Bio & Card Stack -->
+  <section class="bio-grid animate-section" data-animate-id="bio" class:visible={isVisible('bio')}>
+    <div class="bio-main">
+      <h2 class="section-title">About Me→</h2>
+      <div class="bio-content">
+        <p class="bio-paragraph">
+          I'm a <strong>Computer Science student at UT Dallas</strong> who believes the best technology disappears into great experiences. My approach is simple: understand deeply, build iteratively, and never stop learning. Whether I'm designing full-stack applications or training machine learning models, I'm obsessed with the details that make something feel effortless to use.
+        </p>
+        <p class="bio-paragraph">
+          I thrive in <strong>collaborative environments</strong> where ideas flow freely and diverse perspectives push solutions further. When I'm not coding, you'll find me on the soccer field, watching films, or discovering new music. I'm looking for opportunities where I can contribute meaningfully and build things that actually improve people's lives.
+        </p>
       </div>
     </div>
-
-    <!-- Card Stack -->
-    <div class="content-right" in:fly={{ x: 50, duration: 800, delay: 800 }}>
-      <div class="stack-container">
-      {#each cards as card, index (card.id)}
-        <div
-          class="card-wrapper"
-          class:is-top={index === cards.length - 1}
-          class:is-dragging={draggedCard?.id === card.id && isDragging}
-          style={getCardStyle(card, index)}
-          on:mousedown={(e) => handleMouseDown(e, card)}
-          on:touchstart={(e) => handleTouchStart(e, card)}
-          on:mouseenter={() => hoveredCard = card.id}
-          on:mouseleave={() => hoveredCard = null}
-          role="button"
-          tabindex={index === cards.length - 1 ? 0 : -1}
-        >
-          <div class="card" class:hovered={hoveredCard === card.id && index === cards.length - 1}>
-            <div class="card-shine"></div>
-            <img
-              src={card.img}
-              alt={`Photo ${index + 1}`}
-              class="card-image"
-              draggable="false"
-              on:error={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.src = `https://via.placeholder.com/350x350/1e293b/ffffff?text=Image+${card.id}`;
-              }}
-            />
-          </div>
-        </div>
-      {/each}
-    </div>
-    <p class="drag-hint">Drag or swipe to explore</p>
-    </div>
-  </div>
-
-  <!-- GitHub Contributions Section (Full Width) -->
-  <div class="github-section" bind:this={githubSection}>
-    {#if githubVisible}
-      <div class="section-header">
-        <h2 class="section-title">GitHub Activity</h2>
-        <div class="section-divider"></div>
+    
+    <div class="card-stack-container">
+      <div class="card-stack">
+        {#each stack as card, index (card.id)}
+          <Motion
+            let:motion
+            animate={{
+              rotateZ: (stack.length - index - 1) * 4,
+              scale: 1 + index * 0.06 - stack.length * 0.06,
+              transformOrigin: '90% 90%'
+            }}
+            transition={{
+              type: 'spring',
+              stiffness: 260,
+              damping: 20
+            }}
+          >
+            <div 
+              class="stack-card-wrapper"
+              use:motion
+            >
+              <Motion
+                let:motion
+                drag={true}
+                dragConstraints={{ top: 0, right: 0, bottom: 0, left: 0 }}
+                dragElastic={0.8}
+                on:dragEnd={(e) => {
+                  const { offset } = e.detail;
+                  // Calculate total distance dragged (works for any angle)
+                  const distance = Math.sqrt(offset.x ** 2 + offset.y ** 2);
+                  if (distance > 40) {
+                    sendToBack(card.id);
+                  }
+                }}
+              >
+                <div 
+                  class="stack-card"
+                  use:motion
+                  on:click={() => sendToBack(card.id)}
+                >
+                  <img src={card.src} alt="Photo {index + 1}" loading={index === stack.length - 1 ? 'eager' : 'lazy'} draggable="false" />
+                </div>
+              </Motion>
+            </div>
+          </Motion>
+        {/each}
       </div>
-      <div>
+      <p class="card-stack-hint">
+        <span class="hint-icon">↻</span> Drag or click to explore more photos
+      </p>
+    </div>
+  </section>
+
+  <!-- GitHub Section with Browser Mockup -->
+  <section class="github-section animate-section" data-animate-id="github" class:visible={isVisible('github')}>
+    <h2 class="section-title">What I'm Building→</h2>
+    <p class="section-intro">
+      Here's what I've been working on lately.
+    </p>
+    
+    <div class="browser-mockup">
+      <div class="browser-header">
+        <div class="browser-dots">
+          <span class="dot red"></span>
+          <span class="dot yellow"></span>
+          <span class="dot green"></span>
+        </div>
+        <div class="browser-title">GitHub Activity</div>
+        <div class="browser-spacer"></div>
+      </div>
+      <div class="browser-content">
         <GitHubContributions />
       </div>
-    {/if}
-  </div>
+    </div>
+  </section>
 
-  <!-- Apple Music Playlists Section (Full Width) -->
-  <div class="music-section" bind:this={musicSection}>
-    {#if musicVisible}
-      <div class="section-header" in:fly={{ y: -20, duration: 600, delay: 100 }}>
-        <h2 class="section-title">My Playlists</h2>
-        <div class="section-divider"></div>
+  <!-- More About Me Section -->
+  <section class="more-about-section">
+    <div class="more-about-inner">
+      <div class="left-column">
+        <div class="sticky-text">
+          <h2 class="mega-title">More<br/>about me→</h2>
+        </div>
       </div>
-      <div in:fly={{ y: 50, duration: 1000, delay: 300 }}>
-        <AppleMusicPlaylists />
+      
+      <div class="right-column">
+        <div class="question-block">
+          <h3 class="q-title">How to say your name?</h3>
+          <p class="q-answer">Aadhav Manimurugan.</p>
+          <p class="q-answer">Ahh-dhuv   Mah-nee-moo-roo-gun.</p>
+        </div>
+
+        <div class="question-block">
+          <h3 class="q-title">What are your current goals?</h3>
+          <p class="q-answer">Currently, I am looking for an internship for Summer 2026, as well as looking to graduate in December 2026.</p>
+        </div>
+
+        <div class="question-block">
+          <h3 class="q-title">How many years of experience do you have?</h3>
+          <p class="q-answer">I have 3 years of experience in coding, and 1 year of experience in machine learning. Prevously have held a Machine Learning Researcher position aswell as a Software Engineering Intern position.</p>
+        </div>
+
+        <div class="question-block">
+          <h3 class="q-title">What are your main areas of focus?</h3>
+          <p class="q-answer">Full-Stack Development and Machine Learning. I love building applications that combine  front-end design with powerful ML models on the backend.</p>
+        </div>
+
+        <div class="question-block">
+          <h3 class="q-title">Where are you based?</h3>
+          <p class="q-answer">Currently, in Dallas, Texas but looking for oppurtunites anywhere!.</p>
+        </div>
+
+        <div class="question-block">
+          <h3 class="q-title">How do you approach your work?</h3>
+          <p class="q-answer">I'm obsessed with the details and thrive in collaborative environments. I believe the best solutions come from understanding the problem deeply, iterating quickly, and learning from every mistake.</p>
+        </div>
+
+        <div class="question-block">
+          <h3 class="q-title">What about awards or press you've received?</h3>
+          <p class="q-answer">I have recieved a Presidentials Volunteer Service Award, as well as multiple Intramural Championships for multiple sports.</p>
       </div>
-    {/if}
+    </div>
+  </section>
+
+  <!-- Music Section -->
+  <section class="music-section animate-section" data-animate-id="music" class:visible={isVisible('music')}>
+    <div class="music-inner">
+      <div class="music-header">
+        <h2 class="music-title">My different<br/>Playlists→</h2>
+      </div>
+      
+      <div class="playlists-staggered">
+        <!-- Playlist 1: Text Left, Player Right -->
+        <div class="playlist-row row-left">
+          <div class="playlist-text">
+            <h3 class="playlist-name">pretty girls make me nervous</h3>
+            <p class="playlist-desc">My everything playlist.</p>
+          </div>
+          <div class="playlist-player">
+            <iframe
+              src="https://embed.music.apple.com/us/playlist/pretty-girls-make-me-nervous/pl.u-GgA5kZ6Co7mDM3q"
+              height="450"
+              frameborder="0"
+              allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write"
+              sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
+              loading="lazy"
+              title="Apple Music playlist: pretty girls make me nervous"
+            ></iframe>
+          </div>
+        </div>
+
+        <!-- Playlist 2: Player Left, Text Right -->
+        <div class="playlist-row row-right">
+          <div class="playlist-player">
+            <iframe
+              src="https://embed.music.apple.com/us/playlist/playlist-laced-with-agony-and-despair/pl.u-8aAVZybtvlYWk3R"
+              height="450"
+              frameborder="0"
+              allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write"
+              sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
+              loading="lazy"
+              title="Apple Music playlist: playlist laced with agony and despair"
+            ></iframe>
+          </div>
+          <div class="playlist-text">
+            <h3 class="playlist-name">playlist laced with agony and despair</h3>
+            <p class="playlist-desc">Name says it all</p>
+          </div>
+        </div>
+
+        <!-- Playlist 3: Text Left, Player Right -->
+        <div class="playlist-row row-left">
+          <div class="playlist-text">
+            <h3 class="playlist-name">gong na</h3>
+            <p class="playlist-desc">Harder music, more energy.</p>
+          </div>
+          <div class="playlist-player">
+            <iframe
+              src="https://embed.music.apple.com/us/playlist/gong-na/pl.u-NpXmza3s4Y9NzeM"
+              height="450"
+              frameborder="0"
+              allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write"
+              sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
+              loading="lazy"
+              title="Apple Music playlist: gong na"
+            ></iframe>
+          </div>
+        </div>
+
+        <!-- Playlist 4: Player Left, Text Right -->
+        <div class="playlist-row row-right">
+          <div class="playlist-player">
+            <iframe
+              src="https://embed.music.apple.com/us/playlist/3dun/pl.u-oZyl3PYIGbKoVxE"
+              height="450"
+              frameborder="0"
+              allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write"
+              sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
+              loading="lazy"
+              title="Apple Music playlist: 3dun"
+            ></iframe>
+          </div>
+          <div class="playlist-text">
+            <h3 class="playlist-name">3dun</h3>
+            <p class="playlist-desc">Tamil and Hindi songs.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Terminal Footer -->
+  <section class="terminal-footer animate-section" data-animate-id="terminal" class:visible={isVisible('terminal')}>
+    <div class="terminal-window">
+      <div class="terminal-header">
+        <div class="window-controls">
+          <span class="control close"></span>
+          <span class="control minimize"></span>
+          <span class="control maximize"></span>
+        </div>
+        <div class="terminal-title">aadhav@portfolio: ~/connect</div>
+      </div>
+      <div class="terminal-body">
+        <pre class="ascii-art">
+   ___   __  __ 
+  / _ | /  |/  /
+ / __ |/ /|_/ / 
+/_/ |_/_/  /_/  
+                </pre>
+        <div class="terminal-output">
+          <p class="prompt-line">$ whoami</p>
+          <p class="output-line">Aadhav Manimurugan</p>
+          <p class="prompt-line">$ ls ./contact</p>
+          <p class="output-line">Available connection methods:</p>
+          <div class="terminal-links">
+            <a href="mailto:aadhavmanimurugan@gmail.com" class="terminal-command" target="_blank" rel="noopener noreferrer">
+              <span class="prompt">$</span> <span class="command-text">contact --email</span>
+              <span class="command-desc">aadhavmanimurugan@gmail.com</span>
+            </a>
+            <a href="https://github.com/Aadhavm10" class="terminal-command" target="_blank" rel="noopener noreferrer">
+              <span class="prompt">$</span> <span class="command-text">open --github</span>
+              <span class="command-desc">@Aadhavm10</span>
+            </a>
+            <a href="https://www.linkedin.com/in/aadhav-/" class="terminal-command" target="_blank" rel="noopener noreferrer">
+              <span class="prompt">$</span> <span class="command-text">connect --linkedin</span>
+              <span class="command-desc">/in/aadhav-</span>
+            </a>
+            <a href="https://www.instagram.com/aadhav_04/" class="terminal-command" target="_blank" rel="noopener noreferrer">
+              <span class="prompt">$</span> <span class="command-text">follow --instagram</span>
+              <span class="command-desc">@aadhav_04</span>
+            </a>
+          </div>
+          <p class="prompt-line cursor-line">$ <span class="blinking-cursor">_</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer Tear Effect -->
+  <div class="footer-tear">
+    <svg viewBox="0 0 1200 60" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+      <path d="M0,30 Q150,10 300,30 T600,30 T900,30 T1200,30 L1200,60 L0,60 Z" fill="var(--accent-orange)" opacity="0.1"/>
+    </svg>
   </div>
 </div>
 
 <style>
-  .hero-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 0 1rem;
-    margin-top: 2rem;
-    width: 100%;
+  /* CSS Variables - Green/Black Theme */
+  :root {
+    --accent-orange: #2da44e;
+    --accent-orange-hover: #3fb950;
+    --accent-orange-light: #57d26d;
+    --bg-black: #0a0a0a;
+    --bg-dark-gray: #1a1a1a;
+    --bg-card: #141414;
+    --text-white: #ffffff;
+    --text-gray: #9ca3af;
+    --text-light-gray: #d1d5db;
+    --border-color: rgba(45, 164, 78, 0.2);
+  }
+
+  /* Container */
+  .semplice-container {
+    background: var(--bg-black);
+    min-height: 100vh;
+    padding: 0;
     position: relative;
-    z-index: 10;
-    gap: 0;
   }
 
-  @media (min-width: 1024px) {
-    .hero-content {
-      padding: 0 2rem;
-      margin-top: 4rem;
-      gap: 0;
-    }
+  /* Decorative Top Bar */
+  .decorative-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--accent-orange);
+    position: sticky;
+    top: 0;
+    z-index: 50;
   }
 
-  .about-wrapper {
+  /* Animation System - Start visible for immediate display */
+  .animate-section {
+    opacity: 1;
+  }
+
+  /* Hero Section */
+  .hero-section {
+    min-height: 85vh;
     display: flex;
     flex-direction: column;
+    justify-content: center;
     align-items: center;
-    width: 100%;
+    padding: 120px 24px 80px;
+    position: relative;
+    background: linear-gradient(180deg, var(--bg-black) 0%, var(--bg-dark-gray) 100%);
+  }
+
+  .hero-title {
+    margin: 0;
+    padding: 0;
+    text-align: center;
+  }
+
+  .hero-line {
+    display: block;
+    font-size: clamp(56px, 15vw, 140px);
+    font-weight: 900;
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    color: var(--text-white);
+    text-transform: uppercase;
+  }
+
+  .hero-line-accent {
+    color: var(--accent-orange);
+    position: relative;
+  }
+
+  .hero-subtitle {
+    font-size: clamp(18px, 3vw, 28px);
+    font-weight: 500;
+    color: var(--text-gray);
+    margin-top: 32px;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+
+  /* More About Section - Fresh Complete Rebuild */
+  .more-about-section {
+    background: var(--bg-black);
+    border-top: 2px solid var(--border-color);
+    padding: 120px 24px 100px;
+  }
+
+  .more-about-inner {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 3rem 3rem;
-    gap: 3rem;
   }
 
   @media (min-width: 1024px) {
-    .about-wrapper {
-      flex-direction: row;
-      justify-content: space-between;
-      align-items: center;
-      gap: 4rem;
-      padding: 4rem 4rem;
+    .more-about-inner {
+      display: flex;
+      gap: 100px;
     }
   }
 
-  .content-left {
-    width: 100%;
-    max-width: 600px;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    text-align: center;
+  .left-column {
+    flex: 0 0 400px;
   }
 
-  @media (min-width: 640px) {
-    .content-left {
-      gap: 1.25rem;
-    }
+  .sticky-text {
+    position: sticky;
+    top: 80px;
   }
 
-  /* Tablet breakpoint - keep text centered */
-  @media (min-width: 768px) and (max-width: 1023px) {
-    .content-left {
-      text-align: center;
-      max-width: 700px;
-      gap: 1.5rem;
-    }
-  }
-
-  @media (min-width: 1024px) {
-    .content-left {
-      text-align: left;
-      flex: 1;
-      max-width: none;
-    }
-  }
-
-  .github-section {
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 3rem 3rem;
-  }
-
-  @media (min-width: 1024px) {
-    .github-section {
-      padding: 4rem 4rem;
-    }
-  }
-
-  .music-section {
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 3rem 3rem;
-  }
-
-  @media (min-width: 1024px) {
-    .music-section {
-      padding: 4rem 4rem;
-    }
-  }
-
-  .title-section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 0.75rem;
-    margin-bottom: 0;
-    padding-top: 2rem;
-    font-size: 1.875rem;
-    font-weight: 700;
-    color: white;
-    width: 100%;
-  }
-
-  @media (min-width: 640px) {
-    .title-section {
-      gap: 1.5rem;
-      margin-bottom: 2.5rem;
-      font-size: 2.25rem;
-    }
-  }
-
-  @media (min-width: 768px) {
-    .title-section {
-      font-size: 3rem;
-    }
-  }
-
-  @media (min-width: 1024px) {
-    .title-section {
-      font-size: 3.75rem;
-      margin-bottom: 0;
-      padding-top: 4rem;
-    }
-  }
-
-  .title-text {
-    display: block;
-  }
-
-  .title-gradient {
-    background: linear-gradient(to right, #a855f7, #06b6d4);
+  .mega-title {
+    font-size: clamp(48px, 10vw, 110px);
+    font-weight: 900;
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    margin: 0;
+    background: linear-gradient(135deg, var(--text-white) 0%, var(--accent-orange) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-
-  .about-cards {
-    max-width: 600px;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+  .right-column {
+    flex: 1;
+    min-width: 0;
   }
 
-  .about-heading {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: rgba(196, 181, 253, 0.8);
-    margin-bottom: 1rem;
+  .question-block {
+    padding: 32px 0;
+    border-bottom: 2px solid var(--border-color);
   }
 
-  @media (min-width: 640px) {
-    .about-heading {
-      font-size: 0.875rem;
+  .question-block:last-child {
+    border-bottom: none;
+  }
+
+  .question-block:hover {
+    transform: translateX(8px);
+    transition: transform 0.3s ease;
+  }
+
+  .q-title {
+    font-size: clamp(24px, 4vw, 36px);
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: var(--text-white);
+    margin: 0 0 16px 0;
+    padding-left: 40px;
+    position: relative;
+  }
+
+  .q-title::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--accent-orange);
+    font-weight: 900;
+  }
+
+  .q-answer {
+    font-size: clamp(17px, 3vw, 20px);
+    line-height: 1.7;
+    color: var(--text-gray);
+    margin: 0;
+    padding-left: 40px;
+  }
+
+  @media (max-width: 1023px) {
+    .left-column {
+      margin-bottom: 60px;
+    }
+    
+    .sticky-text {
+      position: relative;
+      top: auto;
     }
   }
 
-  .info-card {
-    border-radius: 0.75rem;
-    border: 1px solid rgba(167, 139, 250, 0.2);
-    background: linear-gradient(to bottom right, rgba(139, 92, 246, 0.05), rgba(6, 182, 212, 0.05));
-    backdrop-filter: blur(4px);
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    transition: all 300ms;
-    cursor: pointer;
-  }
-
-  .info-card:hover {
-    border-color: rgba(167, 139, 250, 0.4);
-    background: linear-gradient(to bottom right, rgba(139, 92, 246, 0.1), rgba(6, 182, 212, 0.1));
-  }
-
-
-  .card-text {
-    font-size: 0.875rem;
-    color: #d1d5db;
-    line-height: 1.6;
-    transition: color 300ms;
-    margin-bottom: 1rem;
-  }
-
-  .card-text:last-child {
-    margin-bottom: 0;
-  }
-
-  .info-card:hover .card-text {
-    color: #e5e7eb;
-  }
-
-  .content-right {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
+  /* Bio Grid */
+  .bio-grid {
+    padding: 120px 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 80px;
   }
 
   @media (min-width: 1024px) {
-    .content-right {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    .bio-grid {
+      grid-template-columns: 1.2fr 1fr;
+      gap: 100px;
     }
   }
 
-  .stack-container {
+  .bio-main {
     position: relative;
-    width: min(408px, 90vw);
-    height: min(408px, 90vw);
-    max-width: 408px;
+  }
+
+  .section-title {
+    font-size: clamp(40px, 8vw, 72px);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--text-white);
+    margin: 0 0 48px 0;
+  }
+
+  .bio-content {
+    background: var(--bg-card);
+    padding: 48px;
+    border-left: 6px solid var(--accent-orange);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+  }
+
+  .bio-paragraph {
+    font-size: clamp(17px, 3vw, 21px);
+    line-height: 1.8;
+    color: var(--text-light-gray);
+    margin: 0 0 28px 0;
+  }
+
+  .bio-paragraph:last-child {
+    margin-bottom: 0;
+  }
+
+  .bio-paragraph strong {
+    color: var(--accent-orange);
+    font-weight: 700;
+  }
+
+  .card-stack-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 60px 20px;
+    gap: 24px;
+  }
+
+  .card-stack {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    aspect-ratio: 1 / 1;
     perspective: 600px;
   }
 
-  @media (max-width: 480px) {
-    .stack-container {
-      width: min(340px, 85vw);
-      height: min(340px, 85vw);
+  .card-stack-hint {
+    font-size: 15px;
+    color: var(--text-gray);
+    font-family: 'Courier New', monospace;
+    text-align: center;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0.8;
+    animation: subtlePulse 3s ease-in-out infinite;
+  }
+
+  .hint-icon {
+    color: var(--accent-orange);
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  @keyframes subtlePulse {
+    0%, 100% {
+      opacity: 0.8;
+    }
+    50% {
+      opacity: 1;
     }
   }
 
-  .card-wrapper {
+  .stack-card-wrapper {
     position: absolute;
-    inset: 0;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+  }
+
+  .stack-card-wrapper:active {
+    cursor: grabbing;
+  }
+
+  .stack-card {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: var(--bg-card);
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+    border-radius: 8px;
+    cursor: grab;
+  }
+
+  .stack-card:active {
+    cursor: grabbing;
+  }
+
+  .stack-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  @media (max-width: 767px) {
+    .card-stack {
+      max-width: 340px;
+    }
+    
+    .card-stack-container {
+      padding: 40px 20px;
+    }
+  }
+
+  /* GitHub Section */
+  .github-section {
+    padding: 120px 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+    background: var(--bg-dark-gray);
+  }
+
+  .section-intro {
+    font-size: clamp(18px, 3vw, 24px);
+    line-height: 1.6;
+    color: var(--text-gray);
+    margin: 0 0 60px 0;
+    max-width: 800px;
+  }
+
+  .browser-mockup {
+    background: var(--bg-black);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+    transition: border-color 0.3s ease;
+  }
+
+  .browser-mockup:hover {
+    border-color: var(--accent-orange);
+  }
+
+  .browser-header {
     display: flex;
     align-items: center;
-    justify-content: center;
-    user-select: none;
-    -webkit-user-select: none;
-    touch-action: none;
-    filter: blur(0px);
-    transition: filter 0.3s ease;
+    padding: 16px 20px;
+    background: var(--bg-card);
+    border-bottom: 2px solid var(--border-color);
+    gap: 16px;
   }
 
-  .card-wrapper:not(.is-top) {
-    filter: blur(1px);
+  .browser-dots {
+    display: flex;
+    gap: 8px;
   }
 
-  .card-wrapper.is-dragging {
-    filter: blur(0px) drop-shadow(0 35px 60px rgba(0, 0, 0, 0.7));
+  .dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
   }
 
-  .card {
-    width: 350px;
-    height: 350px;
-    border-radius: 16px;
-    /* Polaroid-style border with thicker bottom */
-    border: 8px solid white;
-    border-bottom-width: 32px;
+  .dot.red {
+    background: #ff5f56;
+  }
+
+  .dot.yellow {
+    background: #ffbd2e;
+  }
+
+  .dot.green {
+    background: #27c93f;
+  }
+
+  .browser-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-gray);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .browser-spacer {
+    flex: 1;
+  }
+
+  .browser-content {
+    padding: 48px;
+    background: var(--bg-card);
+    min-height: 300px;
+  }
+
+  @media (max-width: 767px) {
+    .browser-content {
+      padding: 24px;
+    }
+  }
+
+  /* Music Section */
+  .music-section {
+    padding: 120px 0;
+    background: #ffffff;
+    border-top: 8px solid var(--accent-orange);
+  }
+
+  .music-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .music-header {
+    margin-bottom: 100px;
+  }
+
+  .music-title {
+    font-size: clamp(48px, 10vw, 96px);
+    font-weight: 900;
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    color: #0a0a0a;
+    margin: 0;
+  }
+
+  .playlists-staggered {
+    display: flex;
+    flex-direction: column;
+    gap: 100px;
+  }
+
+  .playlist-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+    align-items: center;
+  }
+
+  @media (min-width: 768px) {
+    .playlist-row {
+      grid-template-columns: 280px 1fr;
+      gap: 60px;
+    }
+
+    .playlist-row.row-right {
+      grid-template-columns: 1fr 280px;
+    }
+
+    .playlist-row.row-right .playlist-text {
+      order: 2;
+    }
+
+    .playlist-row.row-right .playlist-player {
+      order: 1;
+    }
+  }
+
+  .playlist-text {
+    width: 100%;
+  }
+
+  .playlist-name {
+    font-size: clamp(20px, 3vw, 28px);
+    font-weight: 800;
+    line-height: 1.2;
+    color: #0a0a0a;
+    margin: 0 0 12px 0;
+    letter-spacing: -0.01em;
+  }
+
+  .playlist-desc {
+    font-size: clamp(15px, 2vw, 17px);
+    line-height: 1.6;
+    color: #666666;
+    margin: 0;
+  }
+
+  .playlist-player {
+    width: 100%;
+  }
+
+  .playlist-player iframe {
+    width: 100%;
+    height: 450px;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+    display: block;
+  }
+
+  /* Terminal Footer Section */
+  .terminal-footer {
+    padding: 120px 24px 80px 24px;
+    background: var(--bg-black);
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .terminal-window {
+    background: #1a1a1a;
+    border: 1px solid rgba(45, 164, 78, 0.2);
+    border-radius: 12px;
     overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(45, 164, 78, 0.1);
+    transition: all 0.4s ease;
+  }
+
+  .terminal-window:hover {
+    border-color: rgba(45, 164, 78, 0.4);
+    box-shadow: 0 20px 60px rgba(45, 164, 78, 0.15),
+                0 0 0 1px rgba(45, 164, 78, 0.2);
+  }
+
+  .terminal-header {
+    background: #0d0d0d;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid rgba(45, 164, 78, 0.1);
+  }
+
+  .window-controls {
+    display: flex;
+    gap: 8px;
+  }
+
+  .control {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+  }
+
+  .control.close {
+    background: #ff5f57;
+  }
+
+  .control.minimize {
+    background: #ffbd2e;
+  }
+
+  .control.maximize {
+    background: #28ca42;
+  }
+
+  .control:hover {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+
+  .terminal-title {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: var(--text-gray);
+    letter-spacing: 0.5px;
+  }
+
+  .terminal-body {
+    padding: 32px 28px;
+    font-family: 'Courier New', 'Monaco', monospace;
+    background: #0a0a0a;
+  }
+
+  .ascii-art {
+    color: var(--accent-orange);
+    font-size: 14px;
+    line-height: 1.2;
+    margin: 0 0 32px 0;
+    font-weight: bold;
+    letter-spacing: 0px;
+  }
+
+  .terminal-output {
+    color: var(--text-white);
+  }
+
+  .prompt-line {
+    font-size: 15px;
+    color: var(--text-gray);
+    margin: 0 0 8px 0;
+    font-family: 'Courier New', monospace;
+  }
+
+  .output-line {
+    font-size: 15px;
+    color: var(--text-light-gray);
+    margin: 0 0 24px 0;
+    padding-left: 20px;
+    font-family: 'Courier New', monospace;
+  }
+
+  .terminal-links {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 16px 0 24px 0;
+  }
+
+  .terminal-command {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: rgba(45, 164, 78, 0.05);
+    border: 1px solid rgba(45, 164, 78, 0.1);
+    border-radius: 6px;
+    color: var(--text-white);
+    text-decoration: none;
+    font-size: 15px;
+    font-family: 'Courier New', monospace;
+    transition: all 0.3s ease;
     position: relative;
-    /* Enhanced layered shadows for depth */
-    box-shadow:
-      0 2px 4px rgba(0, 0, 0, 0.1),
-      0 4px 8px rgba(0, 0, 0, 0.15),
-      0 8px 16px rgba(0, 0, 0, 0.2),
-      0 16px 32px rgba(0, 0, 0, 0.25),
-      0 32px 64px rgba(0, 0, 0, 0.3),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.1);
-    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    background: white;
+    overflow: hidden;
   }
 
-  .card.hovered {
-    box-shadow:
-      0 2px 4px rgba(0, 0, 0, 0.1),
-      0 4px 8px rgba(0, 0, 0, 0.15),
-      0 8px 16px rgba(0, 0, 0, 0.2),
-      0 16px 32px rgba(0, 0, 0, 0.25),
-      0 32px 64px rgba(0, 0, 0, 0.3),
-      0 0 0 2px rgba(139, 92, 246, 0.4),
-      0 0 40px rgba(139, 92, 246, 0.3),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.95);
-  }
-
-  .card-shine {
+  .terminal-command::before {
+    content: '';
     position: absolute;
     top: 0;
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.1) 25%,
-      rgba(255, 255, 255, 0.3) 50%,
-      rgba(255, 255, 255, 0.1) 75%,
-      transparent 100%
-    );
-    pointer-events: none;
-    z-index: 10;
-    transition: left 0.6s ease;
+    background: linear-gradient(90deg, 
+      transparent, 
+      rgba(45, 164, 78, 0.1), 
+      transparent);
+    transition: left 0.5s ease;
   }
 
-  .card.hovered .card-shine {
+  .terminal-command:hover::before {
     left: 100%;
   }
 
-  .card-image {
+  .terminal-command:hover {
+    background: rgba(45, 164, 78, 0.15);
+    border-color: var(--accent-orange);
+    transform: translateX(8px);
+    box-shadow: 0 0 20px rgba(45, 164, 78, 0.3);
+  }
+
+  .terminal-command .prompt {
+    color: var(--accent-orange);
+    font-weight: bold;
+    flex-shrink: 0;
+  }
+
+  .terminal-command .command-text {
+    color: var(--text-white);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .terminal-command .command-desc {
+    color: var(--text-gray);
+    margin-left: auto;
+    font-size: 14px;
+  }
+
+  .cursor-line {
+    margin-top: 8px;
+  }
+
+  .blinking-cursor {
+    color: var(--accent-orange);
+    font-weight: bold;
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink {
+    0%, 50% {
+      opacity: 1;
+    }
+    51%, 100% {
+      opacity: 0;
+    }
+  }
+
+  /* Responsive Terminal Footer */
+  @media (max-width: 767px) {
+    .terminal-footer {
+      padding: 80px 16px 60px 16px;
+    }
+
+    .terminal-body {
+      padding: 24px 16px;
+    }
+
+    .ascii-art {
+      font-size: 11px;
+      margin-bottom: 24px;
+    }
+
+    .terminal-command {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 12px 14px;
+    }
+
+    .terminal-command .command-desc {
+      margin-left: 0;
+      padding-left: 20px;
+      font-size: 13px;
+    }
+
+    .terminal-command:hover {
+      transform: translateX(4px);
+    }
+
+    .prompt-line,
+    .output-line,
+    .terminal-command {
+      font-size: 14px;
+    }
+
+    .terminal-title {
+      font-size: 12px;
+    }
+  }
+
+  /* Gallery Section */
+  /* Footer Tear */
+  .footer-tear {
+    width: 100%;
+    height: 60px;
+    margin-top: -1px;
+  }
+
+  .footer-tear svg {
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    pointer-events: none;
-    user-select: none;
-    -webkit-user-select: none;
     display: block;
   }
 
-  .drag-hint {
-    font-size: 0.75rem;
-    color: rgba(156, 163, 175, 0.8);
-    letter-spacing: 0.05em;
-  }
-
-  @media (min-width: 640px) {
-    .drag-hint {
-      font-size: 0.875rem;
+  /* Reduced Motion */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-section,
+    .decorative-stamp {
+      animation: none;
+      opacity: 1;
+      transform: none;
+      transition: none;
     }
-  }
-
-  /* Section Title Styles */
-  .section-header {
-    text-align: center;
-    margin-bottom: 1.5rem;
-  }
-
-  .section-title {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: white;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    margin: 0 0 1rem 0;
-  }
-
-  @media (min-width: 640px) {
-    .section-title {
-      font-size: 2rem;
-    }
-  }
-
-  @media (min-width: 1024px) {
-    .section-title {
-      font-size: 2.5rem;
-    }
-
-    .section-header {
-      margin-bottom: 2rem;
-    }
-  }
-
-  .section-divider {
-    width: 80px;
-    height: 3px;
-    margin: 0 auto;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 2px;
   }
 </style>

@@ -7,6 +7,24 @@ import react from '@astrojs/react';
 export default defineConfig({
   integrations: [svelte(), react()],
   vite: {
-    assetsInclude: ['**/*.glb']
+    assetsInclude: ['**/*.glb'],
+    build: {
+      cssCodeSplit: true,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'three': ['three'],
+            'gsap': ['gsap'],
+            'react-three': ['@react-three/fiber', '@react-three/drei', '@react-three/rapier']
+          }
+        }
+      }
+    },
+    ssr: {
+      noExternal: ['three', '@react-three/fiber', '@react-three/drei', '@react-three/rapier']
+    }
+  },
+  build: {
+    inlineStylesheets: 'auto'
   }
 });

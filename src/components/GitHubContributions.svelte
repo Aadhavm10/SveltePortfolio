@@ -59,17 +59,20 @@
 </script>
 
 <div
-  style="background: #ffffff; border: 2px solid #e5e7eb; border-radius: 8px; padding: 20px; max-width: 1200px; width: 100%; margin: 0 auto; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer;"
+  style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 20px; max-width: 1200px; width: 100%; margin: 0 auto; box-shadow: 0 4px 16px rgba(0,0,0,0.4); cursor: pointer; transition: all 0.3s ease;"
   onclick={() => window.open('https://github.com/Aadhavm10', '_blank', 'noopener')}
+  onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.open('https://github.com/Aadhavm10', '_blank', 'noopener'); }}}
+  onmouseenter={(e) => { e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.6)'; e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.5)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+  onmouseleave={(e) => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.4)'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'; e.currentTarget.style.transform = 'translateY(0)'; }}
   role="button"
   tabindex="0"
 >
   <!-- Header -->
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(0,0,0,0.05);">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">
     <div>
-      <h3 style="font-size: 14px; font-weight: 600; color: #1f2937; margin: 0 0 4px 0;">GitHub Activity</h3>
+      <h3 style="font-size: 14px; font-weight: 600; color: #ffffff; margin: 0 0 4px 0;">GitHub Activity</h3>
       {#if contributions && !loading}
-        <p style="font-size: 12px; color: #6b7280; margin: 0;">{contributions.totalContributions} contributions in the last year</p>
+        <p style="font-size: 12px; color: #9ca3af; margin: 0;">{contributions.totalContributions} contributions in the last year</p>
       {/if}
     </div>
     <div style="display: flex; align-items: center; gap: 8px;">
@@ -79,14 +82,14 @@
   </div>
 
   {#if loading}
-    <div style="text-align: center; padding: 40px; color: #6b7280;">
+    <div style="text-align: center; padding: 40px; color: #9ca3af;">
       Loading GitHub contributions...
     </div>
   {:else if error}
     <div style="text-align: center; padding: 40px;">
-      <p style="color: #dc2626; font-size: 14px; margin-bottom: 16px;">{error}</p>
+      <p style="color: #ef4444; font-size: 14px; margin-bottom: 16px;">{error}</p>
       <button
-        style="padding: 8px 16px; border-radius: 6px; border: 1px solid #10b981; background: rgba(16, 185, 129, 0.1); color: #1f2937; cursor: pointer;"
+        style="padding: 8px 16px; border-radius: 6px; border: 1px solid #10b981; background: rgba(16, 185, 129, 0.1); color: #ffffff; cursor: pointer;"
         onclick={(e) => { e.stopPropagation(); loadContributions(); }}
       >
         Retry
@@ -98,7 +101,7 @@
       <!-- Month Labels -->
       <div style="display: flex; gap: 3px; margin-bottom: 8px; margin-left: 32px;">
         {#each contributions.weeks as week, index}
-          <div style="flex: 1; font-size: 10px; color: #6b7280; text-align: left;">
+          <div style="flex: 1; font-size: 10px; color: #9ca3af; text-align: left;">
             {#if monthLabels.find(m => m.index === index)}
               {monthLabels.find(m => m.index === index)?.month}
             {/if}
@@ -112,7 +115,7 @@
           <!-- Day Labels -->
           <div style="display: flex; flex-direction: column; gap: 3px; justify-content: space-around; padding-right: 4px;">
             {#each ['Mon', 'Wed', 'Fri'] as day, idx}
-              <div style="font-size: 10px; color: #6b7280; height: calc(12px * 2.33); display: flex; align-items: center;">
+              <div style="font-size: 10px; color: #9ca3af; height: calc(12px * 2.33); display: flex; align-items: center;">
                 {day}
               </div>
             {/each}
@@ -124,7 +127,7 @@
               <div style="display: flex; flex-direction: column; gap: 3px; flex: 1;">
                 {#each week.contributionDays as day}
                   <div
-                    style="width: 100%; aspect-ratio: 1; border-radius: 2px; background: {getContributionColor(day.contributionCount)}; border: 1px solid rgba(0,0,0,0.06); min-width: 12px; min-height: 12px;"
+                    style="width: 100%; aspect-ratio: 1; border-radius: 2px; background: {getContributionColor(day.contributionCount)}; border: 1px solid rgba(255,255,255,0.1); min-width: 12px; min-height: 12px;"
                     title="{day.contributionCount} contributions on {day.date}"
                   ></div>
                 {/each}
@@ -135,14 +138,14 @@
       </div>
 
       <!-- Legend -->
-      <div style="display: flex; align-items: center; gap: 4px; justify-content: flex-end; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.05);">
-        <span style="font-size: 11px; color: #6b7280; margin-right: 4px;">Less</span>
-        <div style="width: 10px; height: 10px; border-radius: 2px; background: #ebedf0; border: 1px solid rgba(0,0,0,0.06);"></div>
-        <div style="width: 10px; height: 10px; border-radius: 2px; background: #0e4429; border: 1px solid rgba(0,0,0,0.06);"></div>
-        <div style="width: 10px; height: 10px; border-radius: 2px; background: #006d32; border: 1px solid rgba(0,0,0,0.06);"></div>
-        <div style="width: 10px; height: 10px; border-radius: 2px; background: #26a641; border: 1px solid rgba(0,0,0,0.06);"></div>
-        <div style="width: 10px; height: 10px; border-radius: 2px; background: #39d353; border: 1px solid rgba(0,0,0,0.06);"></div>
-        <span style="font-size: 11px; color: #6b7280; margin-left: 4px;">More</span>
+      <div style="display: flex; align-items: center; gap: 4px; justify-content: flex-end; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+        <span style="font-size: 11px; color: #9ca3af; margin-right: 4px;">Less</span>
+        <div style="width: 10px; height: 10px; border-radius: 2px; background: #ebedf0; border: 1px solid rgba(255,255,255,0.1);"></div>
+        <div style="width: 10px; height: 10px; border-radius: 2px; background: #0e4429; border: 1px solid rgba(255,255,255,0.1);"></div>
+        <div style="width: 10px; height: 10px; border-radius: 2px; background: #006d32; border: 1px solid rgba(255,255,255,0.1);"></div>
+        <div style="width: 10px; height: 10px; border-radius: 2px; background: #26a641; border: 1px solid rgba(255,255,255,0.1);"></div>
+        <div style="width: 10px; height: 10px; border-radius: 2px; background: #39d353; border: 1px solid rgba(255,255,255,0.1);"></div>
+        <span style="font-size: 11px; color: #9ca3af; margin-left: 4px;">More</span>
       </div>
     </div>
   {/if}

@@ -121,6 +121,7 @@
     }, 50); // 50ms debounce
 
     // Don't prevent default - let subitems links work
+    // Allow touch events to bubble up for proper click handling
   }
 
   function handleItemTouchEnd() {
@@ -447,7 +448,7 @@
     align-items: center;
     justify-content: center;
     pointer-events: auto; /* Block background clicks when menu is open */
-    touch-action: none;
+    touch-action: pan-y; /* Allow vertical scrolling but enable tap interactions */
     z-index: 998;
   }
 
@@ -513,6 +514,8 @@
     white-space: nowrap;
     overflow: hidden;
     pointer-events: auto; /* Ensure menu items are clickable */
+    touch-action: manipulation; /* Optimize for touch interactions */
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
   }
 
   @media (min-width: 900px) {
@@ -520,7 +523,7 @@
       transform: rotate(var(--item-rot));
     }
 
-    :global(.bubble-menu-items .pill-link:hover) {
+    :global(.bubble-menu-items .pill-link:not(.pill-link-parent):hover) {
       transform: rotate(var(--item-rot)) scale(1.06);
       background: var(--hover-bg);
       color: var(--hover-color);
@@ -558,9 +561,16 @@
       font-size: clamp(1.2rem, 3vw, 4rem);
       padding: clamp(1rem, 2vw, 2rem) 0;
       min-height: 80px;
+      cursor: pointer;
     }
 
-    :global(.bubble-menu-items .pill-link:hover) {
+    :global(.bubble-menu-items .sub-item-link) {
+      min-height: 48px; /* Larger touch targets on mobile */
+      padding: 1rem 1.5rem;
+      font-size: clamp(1.1rem, 3vw, 2rem);
+    }
+
+    :global(.bubble-menu-items .pill-link:not(.pill-link-parent):hover) {
       transform: scale(1.06);
       background: var(--hover-bg);
       color: var(--hover-color);
@@ -584,6 +594,13 @@
     color: var(--hover-color);
   }
 
+  @media (max-width: 899px) {
+    :global(.bubble-menu-items .pill-link-parent),
+    :global(.bubble-menu-items .pill-link-parent.hovered) {
+      transform: none !important;
+    }
+  }
+
   :global(.bubble-menu-items .sub-items) {
     display: flex;
     flex-direction: column;
@@ -596,9 +613,15 @@
     font-size: clamp(1rem, 2.5vw, 2rem);
     color: inherit;
     text-decoration: none;
-    padding: 0.5rem 1rem;
+    padding: 0.75rem 1.5rem;
+    min-height: 44px; /* Ensure minimum touch target size */
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: opacity 0.2s ease;
     pointer-events: auto; /* Ensure subitem links are clickable */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(255, 255, 255, 0.2);
   }
 
   :global(.bubble-menu-items .sub-item-link:hover) {
@@ -607,7 +630,7 @@
 
   @media (min-width: 900px) {
     :global(.bubble-menu-items .pill-link-parent.hovered) {
-      transform: rotate(var(--item-rot)) scale(1.06);
+      transform: rotate(var(--item-rot)) !important;
     }
   }
 </style>

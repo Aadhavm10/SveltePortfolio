@@ -18,9 +18,11 @@
     "gsap": "^3.14.2",
     "meshline": "^3.3.1",
     "motion": "^12.23.26",
+    "ogl": "^1.0.11",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "svelte": "^5.46.1",
+    "svelte-motion": "^0.12.2",
     "three": "^0.182.0"
   },
   "devDependencies": {
