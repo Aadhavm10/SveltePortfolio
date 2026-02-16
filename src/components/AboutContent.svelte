@@ -123,7 +123,7 @@
                 drag={true}
                 dragConstraints={{ top: 0, right: 0, bottom: 0, left: 0 }}
                 dragElastic={0.8}
-                on:dragEnd={(e) => {
+                onDragEnd={(e: any) => {
                   const { offset } = e.detail;
                   // Calculate total distance dragged (works for any angle)
                   const distance = Math.sqrt(offset.x ** 2 + offset.y ** 2);
@@ -136,6 +136,9 @@
                   class="stack-card"
                   use:motion
                   on:click={() => sendToBack(card.id)}
+                  on:keydown={(e) => e.key === 'Enter' && sendToBack(card.id)}
+                  role="button"
+                  tabindex="0"
                 >
                   <img src={card.src} alt="Photo {index + 1}" loading={index === stack.length - 1 ? 'eager' : 'lazy'} draggable="false" />
                 </div>
@@ -217,6 +220,7 @@
         <div class="question-block">
           <h3 class="q-title">What about awards or press you've received?</h3>
           <p class="q-answer">I have recieved a Presidentials Volunteer Service Award, as well as multiple Intramural Championships for multiple sports.</p>
+        </div>
       </div>
     </div>
   </section>
@@ -1107,8 +1111,7 @@
 
   /* Reduced Motion */
   @media (prefers-reduced-motion: reduce) {
-    .animate-section,
-    .decorative-stamp {
+    .animate-section {
       animation: none;
       opacity: 1;
       transform: none;
