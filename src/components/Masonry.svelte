@@ -297,7 +297,7 @@
   });
 </script>
 
-<div bind:this={containerRef} class="list masonry-container">
+<div bind:this={containerRef} class="list masonry-container" style="height: {totalGridHeight}px;">
   {#each grid as item (item.id)}
     <div
       data-key={item.id}
