@@ -127,7 +127,7 @@
                   const { offset } = e.detail;
                   // Calculate total distance dragged (works for any angle)
                   const distance = Math.sqrt(offset.x ** 2 + offset.y ** 2);
-                  if (distance > 40) {
+                  if (distance > 20) {
                     sendToBack(card.id);
                   }
                 }}
@@ -425,7 +425,7 @@
 
   .hero-line {
     display: block;
-    font-size: clamp(56px, 15vw, 140px);
+    font-size: clamp(28px, 10vw, 140px);
     font-weight: 900;
     line-height: 0.9;
     letter-spacing: -0.04em;
@@ -681,9 +681,13 @@
     .card-stack {
       max-width: 340px;
     }
-    
+
     .card-stack-container {
       padding: 40px 20px;
+    }
+
+    .playlist-row.row-right .playlist-text {
+      order: -1;
     }
   }
 
