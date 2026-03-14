@@ -11,9 +11,11 @@
 
   export let items: Item[] = [];
 
-  // Shuffle on every page load
-  let shuffled = [...items].sort(() => Math.random() - 0.5);
-  $: shuffled = [...items].sort(() => Math.random() - 0.5);
+  let shuffled = [...items];
+
+  onMount(() => {
+    shuffled = [...items].sort(() => Math.random() - 0.5);
+  });
   // Legacy props kept for compatibility
   export let ease: string = 'power3.out';
   export let duration: number = 0.6;
