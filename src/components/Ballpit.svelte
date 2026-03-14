@@ -613,12 +613,16 @@
 
   function onTouchStart(e: TouchEvent) {
     if (e.touches.length > 0) {
+      // Don't intercept taps on interactive UI elements (menu buttons, links, etc.)
+      const target = e.touches[0].target as HTMLElement;
+      if (target && target.closest('button, a, [role="button"], [role="menuitem"], input, select, textarea')) {
+        return;
+      }
+      e.preventDefault();
       pointerPosition.set(e.touches[0].clientX, e.touches[0].clientY);
-      let touchedCanvas = false;
       for (const [elem, data] of pointerMap) {
         const rect = elem.getBoundingClientRect();
         if (isInside(rect)) {
-          touchedCanvas = true;
           data.touching = true;
           updatePointerData(data, rect);
           if (!data.hover) {
@@ -628,7 +632,6 @@
           data.onMove(data);
         }
       }
-      if (touchedCanvas) e.preventDefault();
     }
   }
 

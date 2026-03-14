@@ -287,7 +287,7 @@
     gap: 16px;
     padding: 0 2em;
     pointer-events: none;
-    z-index: 99;
+    z-index: 9999;
   }
 
   :global(.bubble-menu.fixed) {
