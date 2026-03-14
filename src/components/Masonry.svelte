@@ -10,6 +10,10 @@
   }
 
   export let items: Item[] = [];
+
+  // Shuffle on every page load
+  let shuffled = [...items].sort(() => Math.random() - 0.5);
+  $: shuffled = [...items].sort(() => Math.random() - 0.5);
   // Legacy props kept for compatibility
   export let ease: string = 'power3.out';
   export let duration: number = 0.6;
@@ -22,15 +26,15 @@
 
   // Lightbox
   let selectedIndex: number | null = null;
-  $: selectedItem = selectedIndex !== null ? items[selectedIndex] : null;
+  $: selectedItem = selectedIndex !== null ? shuffled[selectedIndex] : null;
 
   function openLightbox(i: number) { selectedIndex = i; }
   function closeLightbox() { selectedIndex = null; }
   function prevPhoto() {
-    if (selectedIndex !== null) selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+    if (selectedIndex !== null) selectedIndex = (selectedIndex - 1 + shuffled.length) % shuffled.length;
   }
   function nextPhoto() {
-    if (selectedIndex !== null) selectedIndex = (selectedIndex + 1) % items.length;
+    if (selectedIndex !== null) selectedIndex = (selectedIndex + 1) % shuffled.length;
   }
 
   $: if (typeof document !== 'undefined') {
@@ -56,7 +60,7 @@
 </script>
 
 <div class="masonry">
-  {#each items as item, i}
+  {#each shuffled as item, i}
     <button class="masonry-item" on:click={() => openLightbox(i)} aria-label="View photo {i + 1}">
       <img
         src={item.img}
@@ -82,7 +86,7 @@
       <button class="lb-close" on:click={closeLightbox} aria-label="Close">✕</button>
       <button class="lb-prev" on:click={prevPhoto} aria-label="Previous">‹</button>
       <button class="lb-next" on:click={nextPhoto} aria-label="Next">›</button>
-      <div class="lb-counter">{(selectedIndex ?? 0) + 1} / {items.length}</div>
+      <div class="lb-counter">{(selectedIndex ?? 0) + 1} / {shuffled.length}</div>
     </div>
   </div>
 {/if}
