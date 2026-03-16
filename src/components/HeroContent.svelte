@@ -105,10 +105,10 @@
     height: 200px;
     border-radius: 50%;
     object-fit: cover;
-    border: 4px solid rgba(139, 92, 246, 0.6);
+    border: 4px solid rgba(255, 255, 255, 0.6);
     box-shadow:
       0 10px 40px rgba(0, 0, 0, 0.3),
-      0 0 0 8px rgba(139, 92, 246, 0.1);
+      0 0 0 8px rgba(255, 255, 255, 0.1);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
   }
 
@@ -116,7 +116,7 @@
     transform: scale(1.05);
     box-shadow:
       0 15px 50px rgba(0, 0, 0, 0.4),
-      0 0 0 8px rgba(139, 92, 246, 0.2);
+      0 0 0 8px rgba(255, 255, 255, 0.2);
   }
 
   .title {
@@ -148,10 +148,10 @@
   :global(.rotating-text-display) {
     display: inline-block;
     padding: 0.25rem 1rem;
-    background: rgba(139, 92, 246, 0.4);
+    background: rgba(255, 255, 255, 0.15);
     border-radius: 12px;
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(167, 139, 250, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     position: relative;
   }
 
