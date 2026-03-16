@@ -100,8 +100,7 @@
   }
 
   @media (max-width: 1200px) { .masonry { columns: 3; } }
-  @media (max-width: 700px)  { .masonry { columns: 2; } }
-  @media (max-width: 420px)  { .masonry { columns: 1; } }
+  @media (max-width: 700px)  { .masonry { columns: 2; column-gap: 8px; } }
 
   .masonry-item {
     display: block;
@@ -214,6 +213,10 @@
     font-size: 14px;
     font-family: 'Courier New', monospace;
     pointer-events: none;
+  }
+
+  @media (max-width: 700px) {
+    .masonry-item { margin-bottom: 8px; }
   }
 
   @media (max-width: 600px) {
