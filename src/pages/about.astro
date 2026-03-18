@@ -1,121 +1,30 @@
 ---
-import '@fontsource-variable/inter';
-import BubbleMenu from '../components/BubbleMenu.svelte';
+import Layout from '../layouts/Layout.astro';
 import AboutContent from '../components/AboutContent.svelte';
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="generator" content={Astro.generator} />
-    <meta name="description" content="Learn more about Aadhav Manimurugan - Full-Stack Developer and Machine Learning Engineer" />
-    <title>About | Aadhav's Portfolio</title>
-    
-    <!-- Performance optimizations -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
-    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-
-      body {
-        font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        overflow-x: hidden;
-        background: #0a0a0a;
-      }
-
-      .container {
-        position: relative;
-        width: 100%;
-        min-height: 100vh;
-        overflow: visible;
-        background: #0a0a0a;
-      }
-
-      .content {
-        position: relative;
-        z-index: 10;
-        width: 100%;
-      }
-
-      .credit {
-        position: fixed;
-        bottom: 1.5rem;
-        right: 1.5rem;
-        font-size: 0.75rem;
-        color: rgba(255, 255, 255, 0.4);
-        z-index: 100;
-        pointer-events: none;
-        font-weight: 400;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <!-- Navigation Layer: Bubble Menu -->
-      <BubbleMenu
-        client:load
-        logo="AM"
-        menuBg="#ffffff"
-        menuContentColor="#111111"
-        useFixedPosition={true}
-        items={[
-          {
-            label: 'home',
-            href: '/',
-            ariaLabel: 'Home',
-            rotation: -8,
-            hoverStyles: { bgColor: '#ff6b6b', textColor: '#ffffff' }
-          },
-          {
-            label: 'about',
-            href: '/about',
-            ariaLabel: 'About',
-            rotation: 8,
-            hoverStyles: { bgColor: '#4ecdc4', textColor: '#ffffff' }
-          },
-          {
-            label: 'projects',
-            href: '/projects',
-            ariaLabel: 'Projects',
-            rotation: 8,
-            hoverStyles: { bgColor: '#ffe66d', textColor: '#111111' }
-          },
-          {
-            label: 'life',
-            href: '/life',
-            ariaLabel: 'Life',
-            rotation: 8,
-            hoverStyles: { bgColor: '#a8e6cf', textColor: '#111111' }
-          },
-          {
-            label: 'connect',
-            ariaLabel: 'Connect',
-            rotation: -8,
-            hoverStyles: { bgColor: '#ff8b94', textColor: '#ffffff' },
-            subItems: [
-              { label: 'GitHub', href: 'https://github.com/Aadhavm10' },
-              { label: 'LinkedIn', href: 'https://www.linkedin.com/in/aadhav-/' },
-              { label: 'Email', href: 'mailto:aadhavmanimurugan@gmail.com' }
-            ]
-          }
-        ]}
-      />
-
-      <!-- Content -->
-      <div class="content">
-        <AboutContent client:load />
-      </div>
-
-      <!-- Credit Text -->
-      <div class="credit">
-        Made with Svelte, Astro, and Three.js
-      </div>
+<Layout
+  title="About | Aadhav's Portfolio"
+  description="Learn more about Aadhav Manimurugan - Full-Stack Developer and Machine Learning Engineer"
+>
+  <div class="container">
+    <div class="content">
+      <AboutContent client:load />
     </div>
-  </body>
-</html>
+  </div>
+</Layout>
+
+<style>
+  .container {
+    position: relative;
+    width: 100%;
+    min-height: 100vh;
+    background: #0a0a0a;
+  }
+
+  .content {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+  }
+</style>

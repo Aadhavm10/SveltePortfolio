@@ -1,7 +1,48 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { fetchGitHubContributions } from './social/utils/api';
-  import type { GitHubContributions } from './social/utils/types';
+
+  interface ContributionDay {
+    date: string;
+    contributionCount: number;
+  }
+
+  interface GitHubContributions {
+    totalContributions: number;
+    weeks: Array<{ contributionDays: ContributionDay[] }>;
+  }
+
+  async function fetchGitHubContributions(): Promise<GitHubContributions> {
+    const query = `{
+      user(login: "Aadhavm10") {
+        contributionsCollection {
+          contributionCalendar {
+            totalContributions
+            weeks {
+              contributionDays {
+                date
+                contributionCount
+              }
+            }
+          }
+        }
+      }
+    }`;
+
+    const res = await fetch('https://api.github.com/graphql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `bearer ${import.meta.env.PUBLIC_GITHUB_TOKEN ?? ''}`,
+      },
+      body: JSON.stringify({ query }),
+    });
+
+    if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+    const json = await res.json();
+    const calendar = json.data?.user?.contributionsCollection?.contributionCalendar;
+    if (!calendar) throw new Error('No contribution data returned');
+    return { totalContributions: calendar.totalContributions, weeks: calendar.weeks };
+  }
 
   let contributions = $state<GitHubContributions | null>(null);
   let loading = $state(true);

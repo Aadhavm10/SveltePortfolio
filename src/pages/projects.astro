@@ -1,6 +1,5 @@
 ---
-import '@fontsource-variable/inter';
-import BubbleMenu from '../components/BubbleMenu.svelte';
+import Layout from '../layouts/Layout.astro';
 import ProjectShowcase from '../components/ProjectShowcase.svelte';
 import Prism from '../components/Prism.tsx';
 
@@ -44,155 +43,48 @@ const projects = [
 ];
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="generator" content={Astro.generator} />
-    <meta name="description" content="Explore Aadhav Manimurugan's portfolio of web development and machine learning projects" />
-    <title>Projects | Aadhav's Portfolio</title>
-    
-    <!-- Performance optimizations -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
-    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-
-      body {
-        font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        overflow: hidden;
-        background: #0a0a0a;
-        height: 100vh;
-      }
-
-      .container {
-        position: relative;
-        width: 100%;
-        min-height: 100vh;
-        overflow: hidden;
-        background: #0a0a0a;
-      }
-
-      .prism-background {
-        position: fixed;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 1;
-        pointer-events: none;
-      }
-
-      .content-layer {
-        position: relative;
-        z-index: 10;
-      }
-
-      .credit {
-        position: fixed;
-        bottom: 1.5rem;
-        right: 1.5rem;
-        font-size: 0.75rem;
-        color: rgba(255, 255, 255, 0.6);
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-        z-index: 100;
-        pointer-events: none;
-        font-weight: 400;
-      }
-    </style>
-  </head>
-  <body>
-    <!--
-      Z-INDEX LAYERING STRATEGY:
-      - Background layer (z-index: 1): Prism WebGL effect with transparent background
-      - Content layer (z-index: 10): Project cards and content - MUST have transparent background to show prism
-      - Navigation layer (z-index: 100): Fixed position navigation menu
-
-      IMPORTANT: Never add solid backgrounds to content-layer children, use transparent or rgba() with alpha < 1
-    -->
-    <div class="container">
-      <!-- Background Layer: Prism Effect (z-index: 1) -->
-      <div class="prism-background">
-        <Prism
-          client:idle
-          glow={0.7}
-          bloom={1}
-          colorFrequency={1}
-          noise={0.5}
-          scale={4}
-          height={3.5}
-          baseWidth={5.5}
-          offset={{ x: 0, y: -100 }}
-        />
-      </div>
-
-      <!-- Content Layer (z-index: 10) - transparent background to show prism behind -->
-      <div class="content-layer">
-        <!-- Navigation Layer: Bubble Menu (z-index: 100) -->
-        <BubbleMenu
-          client:load
-          logo="AM"
-          menuBg="#ffffff"
-          menuContentColor="#111111"
-          useFixedPosition={true}
-          items={[
-            {
-              label: 'home',
-              href: '/',
-              ariaLabel: 'Home',
-              rotation: -8,
-              hoverStyles: { bgColor: '#ff6b6b', textColor: '#ffffff' }
-            },
-            {
-              label: 'about',
-              href: '/about',
-              ariaLabel: 'About',
-              rotation: 8,
-              hoverStyles: { bgColor: '#4ecdc4', textColor: '#ffffff' }
-            },
-            {
-              label: 'projects',
-              href: '/projects',
-              ariaLabel: 'Projects',
-              rotation: 8,
-              hoverStyles: { bgColor: '#ffe66d', textColor: '#111111' }
-            },
-            {
-              label: 'life',
-              href: '/life',
-              ariaLabel: 'Life',
-              rotation: 8,
-              hoverStyles: { bgColor: '#a8e6cf', textColor: '#111111' }
-            },
-            {
-              label: 'connect',
-              ariaLabel: 'Connect',
-              rotation: -8,
-              hoverStyles: { bgColor: '#ff8b94', textColor: '#ffffff' },
-              subItems: [
-                { label: 'GitHub', href: 'https://github.com/Aadhavm10' },
-                { label: 'LinkedIn', href: 'https://www.linkedin.com/in/aadhav-/' },
-                { label: 'Email', href: 'mailto:aadhavmanimurugan@gmail.com' }
-              ]
-            }
-          ]}
-        />
-
-        <!-- Content -->
-        <ProjectShowcase
-          client:load
-          projects={projects}
-        />
-
-        <!-- Credit Text -->
-        <div class="credit">
-          Made with Svelte, Astro, and Three.js
-        </div>
-      </div>
+<Layout
+  title="Projects | Aadhav's Portfolio"
+  description="Explore Aadhav Manimurugan's portfolio of web development and machine learning projects"
+>
+  <div class="container">
+    <div class="prism-background">
+      <Prism
+        client:idle
+        glow={0.7}
+        bloom={1}
+        colorFrequency={1}
+        noise={0.5}
+        scale={4}
+        height={3.5}
+        baseWidth={5.5}
+        offset={{ x: 0, y: -100 }}
+      />
     </div>
-  </body>
-</html>
+    <div class="content-layer">
+      <ProjectShowcase client:load projects={projects} />
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .container {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    background: #0a0a0a;
+  }
+
+  .prism-background {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .content-layer {
+    position: relative;
+    z-index: 10;
+  }
+</style>

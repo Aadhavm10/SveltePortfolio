@@ -1,0 +1,103 @@
+---
+import '@fontsource-variable/inter';
+import BubbleMenu from '../components/BubbleMenu.svelte';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const {
+  title,
+  description = 'Aadhav Manimurugan - Full-Stack Developer & Machine Learning Engineer Portfolio',
+} = Astro.props;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        background: #0a0a0a;
+      }
+
+      .credit {
+        position: fixed;
+        bottom: 1.5rem;
+        right: 1.5rem;
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.5);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        z-index: 100;
+        pointer-events: none;
+        font-weight: 400;
+      }
+    </style>
+  </head>
+  <body>
+    <BubbleMenu
+      client:load
+      logo="AM"
+      menuBg="#ffffff"
+      menuContentColor="#111111"
+      useFixedPosition={true}
+      items={[
+        {
+          label: 'home',
+          href: '/',
+          ariaLabel: 'Home',
+          rotation: -8,
+          hoverStyles: { bgColor: '#ff6b6b', textColor: '#ffffff' }
+        },
+        {
+          label: 'about',
+          href: '/about',
+          ariaLabel: 'About',
+          rotation: 8,
+          hoverStyles: { bgColor: '#4ecdc4', textColor: '#ffffff' }
+        },
+        {
+          label: 'projects',
+          href: '/projects',
+          ariaLabel: 'Projects',
+          rotation: 8,
+          hoverStyles: { bgColor: '#ffe66d', textColor: '#111111' }
+        },
+        {
+          label: 'life',
+          href: '/life',
+          ariaLabel: 'Life',
+          rotation: 8,
+          hoverStyles: { bgColor: '#a8e6cf', textColor: '#111111' }
+        },
+        {
+          label: 'connect',
+          ariaLabel: 'Connect',
+          rotation: -8,
+          hoverStyles: { bgColor: '#ff8b94', textColor: '#ffffff' },
+          subItems: [
+            { label: 'GitHub', href: 'https://github.com/Aadhavm10' },
+            { label: 'LinkedIn', href: 'https://www.linkedin.com/in/aadhav-/' },
+            { label: 'Email', href: 'mailto:aadhavmanimurugan@gmail.com' }
+          ]
+        }
+      ]}
+    />
+
+    <slot />
+
+    <div class="credit">Made with Svelte, Astro, and Three.js</div>
+  </body>
+</html>
