@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+
   interface Playlist {
     id: string;
     title: string;
@@ -32,16 +34,40 @@
       embedUrl: 'https://embed.music.apple.com/us/playlist/gong-na/pl.u-NpXmza3s4Y9NzeM'
     }
   ];
+
+  // Only set iframe src once card enters viewport
+  let loaded = $state<Record<string, boolean>>({});
+  let cardEls: HTMLElement[] = [];
+
+  onMount(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const id = (entry.target as HTMLElement).dataset.id!;
+            loaded[id] = true;
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { rootMargin: '200px' }
+    );
+
+    cardEls.forEach((el) => el && observer.observe(el));
+    return () => observer.disconnect();
+  });
 </script>
 
 <div class="playlists-wrapper">
   <div class="playlist-grid">
     {#each playlists as playlist, idx}
-      <article 
+      <article
         class="playlist-card"
         role="region"
         aria-label="Playlist: {playlist.title}"
         style="--card-index: {idx};"
+        data-id={playlist.id}
+        bind:this={cardEls[idx]}
       >
         <div class="card-corner"></div>
         <div class="card-header">
@@ -52,16 +78,18 @@
           </div>
         </div>
         <div class="card-player">
-          <iframe
-            src={playlist.embedUrl}
-            height="450"
-            frameborder="0"
-            allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write"
-            sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
-            loading="lazy"
-            title="Apple Music playlist: {playlist.title}"
-            aria-label="Apple Music playlist: {playlist.title}"
-          ></iframe>
+          {#if loaded[playlist.id]}
+            <iframe
+              src={playlist.embedUrl}
+              height="450"
+              frameborder="0"
+              allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write"
+              sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
+              title="Apple Music playlist: {playlist.title}"
+            ></iframe>
+          {:else}
+            <div class="iframe-placeholder"></div>
+          {/if}
         </div>
       </article>
     {/each}
@@ -177,6 +205,13 @@
 
   .card-player {
     padding: 0 32px 32px;
+  }
+
+  .iframe-placeholder {
+    width: 100%;
+    height: 450px;
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 4px;
   }
 
   .card-player iframe {
