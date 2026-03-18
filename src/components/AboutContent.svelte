@@ -199,7 +199,7 @@
 
         <div class="question-block">
           <h3 class="q-title">How many years of experience do you have?</h3>
-          <p class="q-answer">I have 3 years of experience in coding, and 1 year of experience in machine learning. Prevously have held a Machine Learning Researcher position aswell as a Software Engineering Intern position.</p>
+          <p class="q-answer">I have 3 years of experience in coding, and 1 year of experience in machine learning. Previously have held a Machine Learning Researcher position as well as a Software Engineering Intern position.</p>
         </div>
 
         <div class="question-block">
@@ -209,7 +209,7 @@
 
         <div class="question-block">
           <h3 class="q-title">Where are you based?</h3>
-          <p class="q-answer">Currently, in Dallas, Texas but looking for oppurtunites anywhere!.</p>
+          <p class="q-answer">Currently, in Dallas, Texas but looking for opportunities anywhere!</p>
         </div>
 
         <div class="question-block">
@@ -219,7 +219,7 @@
 
         <div class="question-block">
           <h3 class="q-title">What about awards or press you've received?</h3>
-          <p class="q-answer">I have recieved a Presidentials Volunteer Service Award, as well as multiple Intramural Championships for multiple sports.</p>
+          <p class="q-answer">I have received a Presidential Volunteer Service Award, as well as multiple Intramural Championships for multiple sports.</p>
         </div>
       </div>
     </div>
