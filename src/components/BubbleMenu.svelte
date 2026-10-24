@@ -3,6 +3,7 @@
   import { gsap } from 'gsap';
 
   export let logo: string = 'AM';
+  export let logoHref: string = '/';
   export let menuAriaLabel: string = 'Toggle menu';
   export let menuBg: string = '#ffffff';
   export let menuContentColor: string = '#111111';
@@ -193,7 +194,7 @@
 </script>
 
 <nav class={containerClassName} aria-label="Main navigation">
-  <a href="/" class="bubble logo-bubble" aria-label="Home" style="background: {menuBg};">
+  <a href={logoHref} class="bubble logo-bubble" aria-label="Home" style="background: {menuBg};">
     <span class="logo-content">{logo}</span>
   </a>
 

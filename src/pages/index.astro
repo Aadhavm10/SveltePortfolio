@@ -1,43 +1,71 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import Ballpit from '../components/Ballpit.svelte';
-import HeroContent from '../components/HeroContent.svelte';
+import World from '../components/world/World.tsx';
+import { contactLinks } from '../data/portfolio';
 ---
 
-<Layout title="Aadhav's Portfolio">
-  <div class="container">
-    <div class="ballpit-background">
-      <Ballpit
-        client:only="svelte"
-        count={200}
-        gravity={0.1}
-        friction={0.99}
-        wallBounce={0.95}
-        followCursor={false}
-        colors={[0xff6b6b, 0x4ecdc4, 0xffe66d, 0xa8e6cf, 0xff8b94]}
-        ambientIntensity={1}
-        lightIntensity={200}
-        minSize={0.5}
-        maxSize={1}
-        maxVelocity={0.3}
-      />
-    </div>
-    <HeroContent client:load title="Aadhav Manimurugan" />
-  </div>
+<Layout
+  title="Aadhav Manimurugan | Portfolio"
+  description="Aadhav Manimurugan - Software Engineer. Dribble a ball around a 3D world to explore projects, learn about me, and get in touch."
+  chrome={false}
+>
+  <a class="skip-link" href="/classic">Skip to the classic site</a>
+  <h1 class="sr-only">Aadhav Manimurugan, Software Engineer</h1>
+  <nav class="sr-only" aria-label="Site">
+    <a href="/classic">Classic site</a>
+    <a href="/about">About</a>
+    <a href="/projects">Projects</a>
+    <a href="/life">Life</a>
+    {contactLinks.map((link) => <a href={link.href}>{link.label}</a>)}
+  </nav>
+
+  <World client:only="react" />
+
+  <noscript>
+    <p class="noscript">
+      This page is a 3D world that needs JavaScript. <a href="/classic">Visit the classic site →</a>
+    </p>
+  </noscript>
 </Layout>
 
 <style>
-  .container {
-    position: relative;
-    width: 100%;
-    height: 100vh;
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
     overflow: hidden;
-    background: #0a0a0a;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
-  .ballpit-background {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
+  .skip-link {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    z-index: 200;
+    padding: 0.6rem 1rem;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #111111;
+    font-weight: 700;
+    text-decoration: none;
+    transform: translate(-50%, -200%);
+  }
+
+  .skip-link:focus {
+    transform: translate(-50%, 0);
+  }
+
+  .noscript {
+    padding: 2rem;
+    color: #ffffff;
+    text-align: center;
+  }
+
+  .noscript a {
+    color: #ffffff;
   }
 </style>

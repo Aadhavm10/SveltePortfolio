@@ -1,15 +1,19 @@
 ---
 import '@fontsource-variable/inter';
 import BubbleMenu from '../components/BubbleMenu.svelte';
+import { contactLinks } from '../data/portfolio';
 
 interface Props {
   title: string;
   description?: string;
+  /** Show the bubble menu and footer credit (off for the full-screen 3D world). */
+  chrome?: boolean;
 }
 
 const {
   title,
   description = 'Aadhav Manimurugan - Full-Stack Developer & Machine Learning Engineer Portfolio',
+  chrome = true,
 } = Astro.props;
 ---
 
@@ -47,57 +51,63 @@ const {
     </style>
   </head>
   <body>
-    <BubbleMenu
-      client:load
-      logo="AM"
-      menuBg="#ffffff"
-      menuContentColor="#111111"
-      useFixedPosition={true}
-      items={[
-        {
-          label: 'home',
-          href: '/',
-          ariaLabel: 'Home',
-          rotation: -8,
-          hoverStyles: { bgColor: '#ff6b6b', textColor: '#ffffff' }
-        },
-        {
-          label: 'about',
-          href: '/about',
-          ariaLabel: 'About',
-          rotation: 8,
-          hoverStyles: { bgColor: '#4ecdc4', textColor: '#ffffff' }
-        },
-        {
-          label: 'projects',
-          href: '/projects',
-          ariaLabel: 'Projects',
-          rotation: 8,
-          hoverStyles: { bgColor: '#ffe66d', textColor: '#111111' }
-        },
-        {
-          label: 'life',
-          href: '/life',
-          ariaLabel: 'Life',
-          rotation: 8,
-          hoverStyles: { bgColor: '#a8e6cf', textColor: '#111111' }
-        },
-        {
-          label: 'connect',
-          ariaLabel: 'Connect',
-          rotation: -8,
-          hoverStyles: { bgColor: '#ff8b94', textColor: '#ffffff' },
-          subItems: [
-            { label: 'GitHub', href: 'https://github.com/Aadhavm10' },
-            { label: 'LinkedIn', href: 'https://www.linkedin.com/in/aadhav-/' },
-            { label: 'Email', href: 'mailto:aadhavmanimurugan@gmail.com' }
-          ]
-        }
-      ]}
-    />
+    {chrome && (
+      <BubbleMenu
+        client:load
+        logo="AM"
+        logoHref="/classic"
+        menuBg="#ffffff"
+        menuContentColor="#111111"
+        useFixedPosition={true}
+        items={[
+          {
+            label: 'home',
+            href: '/classic',
+            ariaLabel: 'Home',
+            rotation: -8,
+            hoverStyles: { bgColor: '#ff6b6b', textColor: '#ffffff' }
+          },
+          {
+            label: 'about',
+            href: '/about',
+            ariaLabel: 'About',
+            rotation: 8,
+            hoverStyles: { bgColor: '#4ecdc4', textColor: '#ffffff' }
+          },
+          {
+            label: 'projects',
+            href: '/projects',
+            ariaLabel: 'Projects',
+            rotation: 8,
+            hoverStyles: { bgColor: '#ffe66d', textColor: '#111111' }
+          },
+          {
+            label: 'life',
+            href: '/life',
+            ariaLabel: 'Life',
+            rotation: 8,
+            hoverStyles: { bgColor: '#a8e6cf', textColor: '#111111' }
+          },
+          {
+            label: 'connect',
+            ariaLabel: 'Connect',
+            rotation: -8,
+            hoverStyles: { bgColor: '#ff8b94', textColor: '#ffffff' },
+            subItems: contactLinks.map(({ label, href }) => ({ label, href }))
+          },
+          {
+            label: '3d world',
+            href: '/',
+            ariaLabel: '3D world',
+            rotation: 8,
+            hoverStyles: { bgColor: '#b8a9ff', textColor: '#111111' }
+          }
+        ]}
+      />
+    )}
 
     <slot />
 
-    <div class="credit">Made with Svelte, Astro, and Three.js</div>
+    {chrome && <div class="credit">Made with Svelte, Astro, and Three.js</div>}
   </body>
 </html>

@@ -1,0 +1,43 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Ballpit from '../components/Ballpit.svelte';
+import HeroContent from '../components/HeroContent.svelte';
+---
+
+<Layout title="Aadhav's Portfolio" description="Aadhav Manimurugan - Software Engineer. The classic version of the portfolio.">
+  <div class="container">
+    <div class="ballpit-background">
+      <Ballpit
+        client:only="svelte"
+        count={200}
+        gravity={0.1}
+        friction={0.99}
+        wallBounce={0.95}
+        followCursor={false}
+        colors={[0xff6b6b, 0x4ecdc4, 0xffe66d, 0xa8e6cf, 0xff8b94]}
+        ambientIntensity={1}
+        lightIntensity={200}
+        minSize={0.5}
+        maxSize={1}
+        maxVelocity={0.3}
+      />
+    </div>
+    <HeroContent client:load title="Aadhav Manimurugan" />
+  </div>
+</Layout>
+
+<style>
+  .container {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    background: #0a0a0a;
+  }
+
+  .ballpit-background {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+</style>
