@@ -70,31 +70,3 @@ export function drawContain(ctx: CanvasRenderingContext2D, img: HTMLImageElement
   const dh = img.height * scale;
   ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
-
-/** Simple label: centred text on a transparent or coloured background. */
-export function labelTexture(
-  text: string,
-  {
-    width = 1024,
-    height = 256,
-    color = '#ffffff',
-    background,
-    weight = 800,
-    size = 150,
-    radius = 48
-  }: { width?: number; height?: number; color?: string; background?: string; weight?: number; size?: number; radius?: number } = {}
-) {
-  return canvasTexture(width, height, (ctx, w, h) => {
-    if (background) {
-      ctx.fillStyle = background;
-      ctx.beginPath();
-      ctx.roundRect(0, 0, w, h, radius);
-      ctx.fill();
-    }
-    ctx.fillStyle = color;
-    ctx.font = `${weight} ${size}px ${FONT}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, w / 2, h / 2 + size * 0.04, w * 0.92);
-  });
-}

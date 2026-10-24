@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { BallCollider, RigidBody, type RapierRigidBody } from '@react-three/rapier';
 import { BufferAttribute, GreaterDepth, IcosahedronGeometry, MathUtils, Vector3 } from 'three';
 import { bodies } from './store';
-import { SPAWN } from './zones';
+import { BALL_SPAWN } from './layout';
 
 export const BALL_RADIUS = 0.25;
 export const BALL_MASS = 0.45;
@@ -48,7 +48,7 @@ export function Ball() {
   return (
     <RigidBody
       ref={body}
-      position={[SPAWN.x, 0.6, SPAWN.z - 1.6]}
+      position={[BALL_SPAWN.x, 0.6, BALL_SPAWN.z]}
       colliders={false}
       ccd
       canSleep={false}

@@ -56,3 +56,64 @@ export const contactLinks: ContactLink[] = [
   { id: 'linkedin', label: 'LinkedIn', href: 'https://www.linkedin.com/in/aadhav-/', handle: 'in/aadhav-' },
   { id: 'email', label: 'Email', href: 'mailto:aadhavmanimurugan@gmail.com', handle: 'aadhavmanimurugan@gmail.com' }
 ];
+
+export interface Experience {
+  role: string;
+  org: string;
+  period: string;
+  points: string[];
+  /** Placeholder copy until the real details are filled in. */
+  placeholder?: boolean;
+}
+
+// TODO(Aadhav): replace with the real organisations, dates and highlights.
+export const experience: Experience[] = [
+  {
+    role: 'Machine Learning Researcher',
+    org: 'Research lab name',
+    period: 'Start – End',
+    points: ['What the research was about', 'Models, tools and methods used', 'A result you are proud of'],
+    placeholder: true
+  },
+  {
+    role: 'Software Engineering Intern',
+    org: 'Company name',
+    period: 'Start – End',
+    points: ['What you built', 'Stack and tools', 'Impact or a number that shows it'],
+    placeholder: true
+  }
+];
+
+export interface Playlist {
+  title: string;
+  description: string;
+  href: string;
+}
+
+export const playlists: Playlist[] = [
+  { title: 'pretty girls make me nervous', description: 'My everything playlist', href: 'https://music.apple.com/us/playlist/pretty-girls-make-me-nervous/pl.u-GgA5kZ6Co7mDM3q' },
+  { title: '3dun', description: 'Tamil and Hindi songs', href: 'https://music.apple.com/us/playlist/3dun/pl.u-oZyl3PYIGbKoVxE' },
+  { title: 'gong na', description: 'Hip-hop upbeat playlist', href: 'https://music.apple.com/us/playlist/gong-na/pl.u-NpXmza3s4Y9NzeM' },
+  { title: 'playlist laced with agony and despair', description: 'Name says it all', href: 'https://music.apple.com/us/playlist/playlist-laced-with-agony-and-despair/pl.u-8aAVZybtvlYWk3R' }
+];
+
+export interface FavoriteLink {
+  id: string;
+  label: string;
+  description: string;
+  href: string;
+  placeholder?: boolean;
+}
+
+// TODO(Aadhav): point these at your own profiles.
+export const favoriteLinks: FavoriteLink[] = [
+  { id: 'playstation', label: 'PlayStation', description: 'The games I play and the trophies I chase', href: 'https://psnprofiles.com/', placeholder: true },
+  { id: 'films', label: 'Films', description: 'Everything I have watched and rated', href: 'https://letterboxd.com/', placeholder: true },
+  { id: 'beli', label: 'Beli', description: 'Where I eat and how I rank it', href: 'https://beliapp.com/', placeholder: true }
+];
+
+/** Drop the PDF into public/resume.pdf. */
+export const resumeUrl = '/resume.pdf';
+
+/** The Life photos, resized for the in-world camera. */
+export const photos: string[] = Array.from({ length: 36 }, (_, i) => `/world/photos/${String(i + 1).padStart(2, '0')}.jpg`);

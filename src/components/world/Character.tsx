@@ -1,14 +1,16 @@
 import { useMemo, useRef, type RefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Group, IcosahedronGeometry, MathUtils, MeshStandardMaterial } from 'three';
+import { Group, IcosahedronGeometry, LatheGeometry, MathUtils, MeshStandardMaterial, Vector2 } from 'three';
 import { canvasTexture, FONT } from './textures';
 
-/** Animation inputs, written by the player controller every frame. */
+/** Animation inputs, written by a controller every frame. */
 export interface CharacterPose {
   /** Horizontal speed in m/s. */
   speed: number;
   /** Run cycle phase in radians. */
   phase: number;
+  /** Lean into turns, in radians (positive leans right). */
+  lean: number;
   /** Shot wind-up, 0..1. */
   charge: number;
   /** Kick swing progress, 0..1 (0 when not kicking). */
@@ -19,101 +21,162 @@ export interface CharacterPose {
   touchSide: number;
   /** Seconds since a goal celebration started, -1 when not celebrating. */
   celebrate: number;
+  /** Holding a basketball at the chest, 0..1. */
+  hold: number;
+  /** Jump-shot progress, 0..1 (0 when not shooting). */
+  shoot: number;
+  /** Goalkeeper crouch, 0..1. */
+  ready: number;
+  /** Goalkeeper dive (arms stretched overhead), 0..1. */
+  dive: number;
 }
 
 export const createPose = (): CharacterPose => ({
   speed: 0,
   phase: 0,
+  lean: 0,
   charge: 0,
   kick: 0,
   touch: 0,
   touchSide: 1,
-  celebrate: -1
+  celebrate: -1,
+  hold: 0,
+  shoot: 0,
+  ready: 0,
+  dive: 0
 });
 
-const COLORS = {
+export interface Look {
+  skin: string;
+  hair: string;
+  hairStyle: 'wavy' | 'short';
+  beard: boolean;
+  kit: string;
+  trim: string;
+  shorts: string;
+  socks: string;
+  boots: string;
+  soles: string;
+  gloves?: string;
+  name?: string;
+  number: string;
+}
+
+export const AADHAV: Look = {
   skin: '#8d5a3b',
   hair: '#17110e',
+  hairStyle: 'wavy',
+  beard: true,
   kit: '#f6f6f2',
   trim: '#161616',
   shorts: '#1a1a1f',
-  sock: '#f1f1ec',
-  boot: '#121212',
-  eye: '#1b120e',
-  mouth: '#4a1f18',
-  teeth: '#fbfbf8'
+  socks: '#f1f1ec',
+  boots: '#141414',
+  soles: '#ffcf3e',
+  name: 'AADHAV',
+  number: '7'
+};
+
+export const KEEPER: Look = {
+  skin: '#c58c63',
+  hair: '#2a1c14',
+  hairStyle: 'short',
+  beard: false,
+  kit: '#3ddc84',
+  trim: '#0f3d24',
+  shorts: '#0f3d24',
+  socks: '#3ddc84',
+  boots: '#141414',
+  soles: '#ffffff',
+  gloves: '#f4f4f4',
+  number: '1'
 };
 
 /** Wavy hair: [x, y, z, radius] blobs around the head (head-local space). */
 const CURLS: [number, number, number, number][] = [
-  [0, 0.318, 0.0, 0.068],
-  [0.075, 0.305, 0.035, 0.064],
-  [-0.075, 0.307, 0.03, 0.066],
-  [0.045, 0.295, -0.085, 0.066],
-  [-0.05, 0.29, -0.085, 0.064],
-  [0.142, 0.18, -0.03, 0.05],
-  [-0.142, 0.18, -0.03, 0.05],
-  [0.065, 0.285, 0.105, 0.06],
-  [-0.01, 0.285, 0.125, 0.062],
-  [-0.085, 0.255, 0.105, 0.058],
-  [0.135, 0.235, 0.025, 0.06],
-  [-0.138, 0.23, 0.02, 0.06],
-  [0.12, 0.25, -0.075, 0.062],
-  [-0.12, 0.245, -0.08, 0.062],
-  [0, 0.235, -0.135, 0.07],
-  [0.085, 0.175, -0.125, 0.06],
-  [-0.085, 0.175, -0.125, 0.06],
-  [0, 0.12, -0.13, 0.058]
+  [0, 0.325, 0.0, 0.07],
+  [0.078, 0.31, 0.04, 0.066],
+  [-0.078, 0.312, 0.035, 0.068],
+  [0.05, 0.3, -0.085, 0.068],
+  [-0.05, 0.296, -0.085, 0.066],
+  [0.07, 0.285, 0.105, 0.058],
+  [-0.015, 0.29, 0.12, 0.06],
+  [0.142, 0.235, 0.02, 0.058],
+  [-0.145, 0.23, 0.015, 0.058],
+  [0.125, 0.255, -0.075, 0.06],
+  [-0.125, 0.25, -0.08, 0.06],
+  [0, 0.24, -0.14, 0.068],
+  [0.09, 0.18, -0.13, 0.058],
+  [-0.09, 0.18, -0.13, 0.058],
+  [0, 0.125, -0.135, 0.056],
+  [0.15, 0.17, -0.04, 0.048],
+  [-0.15, 0.17, -0.04, 0.048]
 ];
 
-type Materials = Record<keyof typeof COLORS, MeshStandardMaterial>;
+type Materials = ReturnType<typeof makeMaterials>;
 type JointRef = RefObject<Group | null>;
 
 const { damp, lerp } = MathUtils;
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
-export function Character({ pose }: { pose: CharacterPose }) {
-  const m = useMemo<Materials>(() => {
-    const mat = (color: string, roughness: number, flatShading = false) =>
-      new MeshStandardMaterial({ color, roughness, flatShading });
-    return {
-      skin: mat(COLORS.skin, 0.6),
-      hair: mat(COLORS.hair, 0.95, true),
-      kit: mat(COLORS.kit, 0.55),
-      trim: mat(COLORS.trim, 0.6),
-      shorts: mat(COLORS.shorts, 0.75),
-      sock: mat(COLORS.sock, 0.8),
-      boot: mat(COLORS.boot, 0.35),
-      eye: mat(COLORS.eye, 0.3),
-      mouth: mat(COLORS.mouth, 0.6),
-      teeth: mat(COLORS.teeth, 0.4)
-    };
-  }, []);
-
+function makeMaterials(look: Look) {
+  const mat = (color: string, roughness: number, flatShading = false) => new MeshStandardMaterial({ color, roughness, flatShading });
   // The jersey texture wraps around the torso: u = 0 is the chest, u = 0.5 the back.
-  const jersey = useMemo(
-    () =>
-      new MeshStandardMaterial({
-        roughness: 0.55,
-        map: canvasTexture(1024, 512, (ctx, w, h) => {
-          ctx.fillStyle = COLORS.kit;
-          ctx.fillRect(0, 0, w, h);
-          ctx.fillStyle = COLORS.trim;
-          for (const x of [w * 0.25, w * 0.75]) ctx.fillRect(x - 5, 0, 10, h);
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'alphabetic';
-          ctx.font = `800 46px ${FONT}`;
-          ctx.fillText('AADHAV', w / 2, 120);
-          ctx.font = `900 250px ${FONT}`;
-          ctx.fillText('7', w / 2, 360);
-          ctx.font = `900 64px ${FONT}`;
-          ctx.fillText('7', w * 0.075, 150);
-        })
-      }),
-    []
-  );
+  const jersey = new MeshStandardMaterial({
+    roughness: 0.6,
+    map: canvasTexture(1024, 512, (ctx, w, h) => {
+      ctx.fillStyle = look.kit;
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = look.trim;
+      for (const x of [w * 0.25, w * 0.75]) ctx.fillRect(x - 6, 0, 12, h);
+      ctx.fillRect(0, h - 14, w, 14);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      if (look.name) {
+        ctx.font = `800 44px ${FONT}`;
+        ctx.fillText(look.name, w / 2, 150);
+      }
+      ctx.font = `900 230px ${FONT}`;
+      ctx.fillText(look.number, w / 2, look.name ? 370 : 330);
+      ctx.font = `900 60px ${FONT}`;
+      ctx.fillText(look.number, w * 0.07, 190);
+    })
+  });
+  return {
+    jersey,
+    skin: mat(look.skin, 0.62),
+    hair: mat(look.hair, 0.9, true),
+    kit: mat(look.kit, 0.6),
+    trim: mat(look.trim, 0.6),
+    shorts: mat(look.shorts, 0.75),
+    socks: mat(look.socks, 0.8),
+    boots: mat(look.boots, 0.35),
+    soles: mat(look.soles, 0.5),
+    hands: mat(look.gloves ?? look.skin, 0.62),
+    sclera: mat('#f7f3ee', 0.4),
+    iris: mat('#1b120e', 0.25),
+    mouth: mat('#4a1f18', 0.6),
+    teeth: mat('#fbfbf8', 0.4)
+  };
+}
 
-  const curlGeometry = useMemo(() => new IcosahedronGeometry(1, 1), []);
+function torsoGeometry() {
+  const profile = [
+    [0.172, 0.0],
+    [0.19, 0.08],
+    [0.205, 0.22],
+    [0.226, 0.36],
+    [0.232, 0.46],
+    [0.214, 0.535],
+    [0.16, 0.59],
+    [0.085, 0.62]
+  ].map(([r, y]) => new Vector2(r, y));
+  return new LatheGeometry(profile, 24);
+}
+
+export function Character({ pose, look = AADHAV }: { pose: CharacterPose; look?: Look }) {
+  const m = useMemo(() => makeMaterials(look), [look]);
+  const geometries = useMemo(() => ({ torso: torsoGeometry(), curl: new IcosahedronGeometry(1, 1) }), []);
 
   const root = useRef<Group>(null);
   const torso = useRef<Group>(null);
@@ -130,32 +193,33 @@ export function Character({ pose }: { pose: CharacterPose }) {
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.05);
     const t = state.clock.elapsedTime;
-    const run = Math.min(pose.speed / 5.2, 1.6);
+    const run = Math.min(pose.speed / 5.4, 1.6);
     const amp = Math.min(run, 1);
     const sprint = Math.max(0, run - 1);
     const idle = 1 - amp;
     const s = Math.sin(pose.phase);
     const c = Math.cos(pose.phase);
-    const stride = 0.75 + sprint * 0.5;
+    const stride = 0.78 + sprint * 0.45;
 
     // Run cycle
     let hipLx = -s * stride * amp;
     let hipRx = s * stride * amp;
     let hipLz = 0;
     let hipRz = 0;
-    let kneeLx = 0.05 + (0.1 + Math.max(0, c) * (1.05 + sprint)) * amp;
-    let kneeRx = 0.05 + (0.1 + Math.max(0, -c) * (1.05 + sprint)) * amp;
-    let shLx = s * 0.75 * amp;
-    let shRx = -s * 0.75 * amp;
-    let shLz = -0.12 - amp * 0.04 - Math.sin(t * 1.7) * 0.025 * idle;
-    let shRz = 0.12 + amp * 0.04 + Math.sin(t * 1.7) * 0.025 * idle;
-    let elLx = -0.25 - 0.95 * amp;
-    let elRx = -0.25 - 0.95 * amp;
-    let torsoX = 0.1 * amp + 0.16 * sprint + Math.sin(t * 1.7) * 0.015 * idle;
-    let torsoY = s * 0.16 * amp;
+    let kneeLx = 0.06 + (0.12 + Math.max(0, c) * (1.1 + sprint)) * amp;
+    let kneeRx = 0.06 + (0.12 + Math.max(0, -c) * (1.1 + sprint)) * amp;
+    let shLx = s * 0.8 * amp;
+    let shRx = -s * 0.8 * amp;
+    let shLz = -0.1 - amp * 0.05 - Math.sin(t * 1.7) * 0.025 * idle;
+    let shRz = 0.1 + amp * 0.05 + Math.sin(t * 1.7) * 0.025 * idle;
+    let elLx = -0.2 - 1.0 * amp;
+    let elRx = -0.2 - 1.0 * amp;
+    let torsoX = 0.08 * amp + 0.16 * sprint + Math.sin(t * 1.7) * 0.015 * idle;
+    let torsoY = s * 0.18 * amp;
     let headX = -torsoX * 0.6;
-    let headY = -torsoY * 0.7 + Math.sin(t * 0.6) * 0.12 * idle;
-    let bob = (Math.abs(s) * 0.07 - 0.035) * amp;
+    let headY = -torsoY * 0.7 + Math.sin(t * 0.5) * 0.18 * idle * idle;
+    let bob = (Math.abs(s) * 0.075 - 0.04) * amp;
+    let lift = 0;
 
     // Dribble touch: a quick flick of the touching foot.
     if (pose.touch > 0) {
@@ -164,23 +228,79 @@ export function Character({ pose }: { pose: CharacterPose }) {
       else hipLx -= flick;
     }
 
+    // Goalkeeper crouch
+    if (pose.ready > 0) {
+      const k = pose.ready * idle;
+      hipLx = lerp(hipLx, -0.45, k);
+      hipRx = lerp(hipRx, -0.45, k);
+      hipLz = lerp(hipLz, -0.12, k);
+      hipRz = lerp(hipRz, 0.12, k);
+      kneeLx = lerp(kneeLx, 0.75, k);
+      kneeRx = lerp(kneeRx, 0.75, k);
+      shLx = lerp(shLx, -0.55, k);
+      shRx = lerp(shRx, -0.55, k);
+      shLz = lerp(shLz, -0.55, k);
+      shRz = lerp(shRz, 0.55, k);
+      elLx = elRx = lerp(elLx, -0.7, k);
+      torsoX = lerp(torsoX, 0.3, k);
+      headX = lerp(headX, -0.25, k);
+      bob = lerp(bob, -0.14, k);
+    }
+
+    // Holding a basketball at the chest
+    if (pose.hold > 0) {
+      const k = pose.hold;
+      shLx = lerp(shLx, -0.95, k);
+      shRx = lerp(shRx, -0.95, k);
+      shLz = lerp(shLz, 0.18, k);
+      shRz = lerp(shRz, -0.18, k);
+      elLx = lerp(elLx, -1.15, k);
+      elRx = lerp(elRx, -1.15, k);
+    }
+
     // Shot wind-up
     if (pose.charge > 0) {
       const k = smooth(pose.charge);
-      hipRx = lerp(hipRx, 0.9, k);
-      kneeRx = lerp(kneeRx, 1.5, k);
-      hipLx = lerp(hipLx, -0.1, k);
-      kneeLx = lerp(kneeLx, 0.3, k);
-      shLx = lerp(shLx, -0.35, k);
-      shLz = lerp(shLz, -1.1, k);
-      shRx = lerp(shRx, 0.45, k);
-      shRz = lerp(shRz, 0.7, k);
-      torsoX = lerp(torsoX, -0.1, k);
-      torsoY = lerp(torsoY, 0.3, k);
-      bob = lerp(bob, -0.04, k);
+      if (pose.hold > 0) {
+        // Basketball: dip into the knees, ball up by the face.
+        kneeLx = lerp(kneeLx, 0.7, k);
+        kneeRx = lerp(kneeRx, 0.7, k);
+        hipLx = lerp(hipLx, -0.4, k);
+        hipRx = lerp(hipRx, -0.4, k);
+        shLx = lerp(shLx, -2.1, k);
+        shRx = lerp(shRx, -2.1, k);
+        elLx = lerp(elLx, -1.6, k);
+        elRx = lerp(elRx, -1.6, k);
+        bob = lerp(bob, -0.16, k);
+      } else {
+        hipRx = lerp(hipRx, 0.9, k);
+        kneeRx = lerp(kneeRx, 1.5, k);
+        hipLx = lerp(hipLx, -0.1, k);
+        kneeLx = lerp(kneeLx, 0.3, k);
+        shLx = lerp(shLx, -0.35, k);
+        shLz = lerp(shLz, -1.1, k);
+        shRx = lerp(shRx, 0.45, k);
+        shRz = lerp(shRz, 0.7, k);
+        torsoX = lerp(torsoX, -0.1, k);
+        torsoY = lerp(torsoY, 0.3, k);
+        bob = lerp(bob, -0.04, k);
+      }
     }
 
-    // Strike
+    // Jump shot
+    if (pose.shoot > 0) {
+      const k = pose.shoot;
+      const up = Math.sin(Math.min(1, k * 1.4) * Math.PI);
+      lift = up * 0.4;
+      kneeLx = kneeRx = 0.15;
+      hipLx = hipRx = -0.1;
+      shLx = shRx = -2.8;
+      shLz = 0.12;
+      shRz = -0.12;
+      elLx = elRx = k < 0.35 ? -1.4 : -0.15;
+    }
+
+    // Kick
     const kicking = pose.kick > 0;
     if (kicking) {
       const k = pose.kick;
@@ -201,6 +321,20 @@ export function Character({ pose }: { pose: CharacterPose }) {
       shRx = 0.5;
       torsoX = k < 0.3 ? -0.18 : lerp(-0.18, 0.05, (k - 0.3) / 0.7);
       torsoY = lerp(0.3, -0.2, Math.min(1, k * 3));
+    }
+
+    // Goalkeeper dive: stretched out, arms overhead.
+    if (pose.dive > 0) {
+      const k = pose.dive;
+      shLx = lerp(shLx, -3.0, k);
+      shRx = lerp(shRx, -3.0, k);
+      shLz = lerp(shLz, -0.15, k);
+      shRz = lerp(shRz, 0.15, k);
+      elLx = elRx = lerp(elLx, -0.1, k);
+      hipLx = hipRx = lerp(hipLx, 0.05, k);
+      kneeLx = kneeRx = lerp(kneeLx, 0.2, k);
+      torsoX = lerp(torsoX, 0, k);
+      bob = lerp(bob, 0, k);
     }
 
     // Goal celebration: jump with arms up, then land arms out wide.
@@ -231,7 +365,7 @@ export function Character({ pose }: { pose: CharacterPose }) {
       headY = 0;
     }
 
-    const lambda = kicking ? 40 : 16;
+    const lambda = kicking || pose.shoot > 0 ? 38 : 15;
     const set = (ref: JointRef, x: number, y: number, z: number) => {
       const o = ref.current;
       if (!o) return;
@@ -249,37 +383,32 @@ export function Character({ pose }: { pose: CharacterPose }) {
     set(elbowR, elRx, 0, 0);
     set(torso, torsoX, torsoY, 0);
     set(head, headX, headY, 0);
-    if (root.current) root.current.position.y = damp(root.current.position.y, bob, 20, dt);
+    if (root.current) {
+      root.current.position.y = damp(root.current.position.y, bob + lift, 20, dt);
+      root.current.rotation.z = damp(root.current.rotation.z, -pose.lean, 10, dt);
+    }
   });
 
   return (
     <group ref={root}>
       <group position={[0, 0.95, 0]}>
         {/* Shorts */}
-        <mesh material={m.shorts} position={[0, -0.04, 0]} scale={[1, 1, 0.6]} castShadow>
-          <cylinderGeometry args={[0.2, 0.2, 0.17, 16]} />
+        <mesh material={m.shorts} position={[0, -0.05, 0]} scale={[1, 1, 0.66]} castShadow>
+          <cylinderGeometry args={[0.19, 0.205, 0.2, 18]} />
         </mesh>
         <Leg side={-1} hip={hipL} knee={kneeL} m={m} />
         <Leg side={1} hip={hipR} knee={kneeR} m={m} />
 
         <group ref={torso}>
-          <mesh material={jersey} position={[0, 0.3, 0]} scale={[1, 1, 0.58]} castShadow>
-            <cylinderGeometry args={[0.235, 0.2, 0.56, 20]} />
+          <mesh geometry={geometries.torso} material={m.jersey} scale={[1, 1, 0.62]} castShadow />
+          <mesh material={m.trim} position={[0, 0.61, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[0.072, 0.018, 6, 18]} />
           </mesh>
-          {/* Rounded shoulders */}
-          <mesh material={m.kit} position={[0, 0.578, 0]} scale={[1, 0.32, 0.58]} castShadow>
-            <sphereGeometry args={[0.235, 20, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
-          </mesh>
-          {/* Collar */}
-          <mesh material={m.trim} position={[0, 0.64, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[0.068, 0.018, 6, 16]} />
-          </mesh>
-          {/* Neck */}
-          <mesh material={m.skin} position={[0, 0.62, 0]} castShadow>
-            <cylinderGeometry args={[0.055, 0.06, 0.12, 10]} />
+          <mesh material={m.skin} position={[0, 0.65, 0]} castShadow>
+            <cylinderGeometry args={[0.055, 0.06, 0.1, 10]} />
           </mesh>
           <group ref={head} position={[0, 0.66, 0]}>
-            <Head m={m} curlGeometry={curlGeometry} />
+            <Head m={m} look={look} curl={geometries.curl} />
           </group>
           <Arm side={-1} shoulder={shoulderL} elbow={elbowL} m={m} />
           <Arm side={1} shoulder={shoulderR} elbow={elbowR} m={m} />
@@ -289,88 +418,99 @@ export function Character({ pose }: { pose: CharacterPose }) {
   );
 }
 
-function Head({ m, curlGeometry }: { m: Materials; curlGeometry: IcosahedronGeometry }) {
+function Head({ m, look, curl }: { m: Materials; look: Look; curl: IcosahedronGeometry }) {
   return (
     <group>
-      {/* Skull */}
-      <mesh material={m.skin} position={[0, 0.15, 0]} scale={[0.92, 1.08, 1]} castShadow>
-        <sphereGeometry args={[0.16, 24, 18]} />
+      <mesh material={m.skin} position={[0, 0.155, 0]} scale={[0.93, 1.06, 1]} castShadow>
+        <sphereGeometry args={[0.165, 28, 20]} />
       </mesh>
-      {/* Ears */}
       {[-1, 1].map((side) => (
-        <mesh key={side} material={m.skin} position={[side * 0.146, 0.14, -0.005]} scale={[0.5, 1, 0.8]}>
-          <sphereGeometry args={[0.038, 10, 8]} />
+        <mesh key={side} material={m.skin} position={[side * 0.15, 0.145, -0.005]} scale={[0.45, 1, 0.75]}>
+          <sphereGeometry args={[0.04, 12, 8]} />
         </mesh>
       ))}
-      {/* Hair: a cap plus wavy curls and a fringe */}
-      <mesh material={m.hair} position={[0, 0.17, -0.012]} rotation={[-0.38, 0, 0]} scale={[0.96, 1, 1.02]} castShadow>
-        <sphereGeometry args={[0.168, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
+
+      {/* Hair */}
+      <mesh material={m.hair} position={[0, 0.172, -0.012]} rotation={[-0.36, 0, 0]} scale={[0.97, 1, 1.03]} castShadow>
+        <sphereGeometry args={[0.173, 18, 10, 0, Math.PI * 2, 0, Math.PI * (look.hairStyle === 'wavy' ? 0.56 : 0.5)]} />
       </mesh>
-      {CURLS.map(([x, y, z, r], i) => (
-        <mesh
-          key={i}
-          geometry={curlGeometry}
-          material={m.hair}
-          position={[x, y, z]}
-          rotation={[i * 0.7, i * 1.3, 0]}
-          scale={r}
-          castShadow
-        />
-      ))}
+      {look.hairStyle === 'wavy' && (
+        <>
+          {CURLS.map(([x, y, z, r], i) => (
+            <mesh key={i} geometry={curl} material={m.hair} position={[x, y, z]} rotation={[i * 0.7, i * 1.3, 0]} scale={[r, r * 0.85, r]} castShadow />
+          ))}
+          {/* Fringe swooping across the forehead */}
+          <mesh geometry={curl} material={m.hair} position={[-0.035, 0.262, 0.14]} rotation={[0.3, 0.2, 0.45]} scale={[0.1, 0.04, 0.05]} />
+          <mesh geometry={curl} material={m.hair} position={[0.06, 0.272, 0.132]} rotation={[0.2, -0.2, -0.3]} scale={[0.07, 0.035, 0.045]} />
+        </>
+      )}
+
       {/* Eyes and brows */}
       {[-1, 1].map((side) => (
         <group key={side}>
-          <mesh material={m.eye} position={[side * 0.052, 0.168, 0.143]}>
-            <sphereGeometry args={[0.019, 10, 8]} />
+          <mesh material={m.sclera} position={[side * 0.055, 0.17, 0.141]} scale={[1, 0.78, 0.5]}>
+            <sphereGeometry args={[0.026, 12, 10]} />
           </mesh>
-          <mesh material={m.hair} position={[side * 0.056, 0.205, 0.142]} rotation={[0, 0, side * -0.12]}>
-            <boxGeometry args={[0.056, 0.013, 0.014]} />
+          <mesh material={m.iris} position={[side * 0.053, 0.168, 0.152]}>
+            <sphereGeometry args={[0.0145, 10, 8]} />
+          </mesh>
+          <mesh material={m.hair} position={[side * 0.057, 0.213, 0.147]} rotation={[0, 0, side * -0.12]}>
+            <boxGeometry args={[0.058, 0.014, 0.014]} />
           </mesh>
         </group>
       ))}
-      {/* Nose */}
-      <mesh material={m.skin} position={[0, 0.13, 0.158]} scale={[0.75, 0.9, 0.8]}>
+      <mesh material={m.skin} position={[0, 0.13, 0.162]} scale={[0.75, 0.9, 0.8]}>
         <sphereGeometry args={[0.022, 10, 8]} />
       </mesh>
-      {/* Big grin */}
-      <mesh material={m.mouth} position={[0, 0.098, 0.149]} rotation={[0.3, 0, 0]} scale={[1.25, 0.72, 1]}>
+
+      {/* Grin */}
+      <mesh material={m.mouth} position={[0, 0.098, 0.151]} rotation={[0.3, 0, 0]} scale={[1.25, 0.72, 1]}>
         <circleGeometry args={[0.045, 20, Math.PI, Math.PI]} />
       </mesh>
-      <mesh material={m.teeth} position={[0, 0.097, 0.151]} rotation={[0.3, 0, 0]} scale={[1.25, 0.6, 1]}>
+      <mesh material={m.teeth} position={[0, 0.097, 0.153]} rotation={[0.3, 0, 0]} scale={[1.25, 0.6, 1]}>
         <circleGeometry args={[0.039, 20, Math.PI, Math.PI]} />
       </mesh>
-      {/* Thin mustache */}
-      {[-1, 1].map((side) => (
-        <mesh key={side} material={m.hair} position={[side * 0.025, 0.112, 0.153]} rotation={[0, 0, side * -0.22]}>
-          <boxGeometry args={[0.046, 0.011, 0.012]} />
-        </mesh>
-      ))}
-      {/* Goatee and soul patch */}
-      <mesh material={m.hair} position={[0, 0.028, 0.116]} rotation={[0.45, 0, 0]} scale={[0.027, 0.024, 0.013]}>
-        <sphereGeometry args={[1, 12, 10]} />
-      </mesh>
-      <mesh material={m.hair} position={[0, 0.05, 0.134]} scale={[0.008, 0.011, 0.006]}>
-        <sphereGeometry args={[1, 8, 6]} />
-      </mesh>
+
+      {look.beard && (
+        <>
+          {[-1, 1].map((side) => (
+            <mesh key={side} material={m.hair} position={[side * 0.025, 0.113, 0.156]} rotation={[0, 0, side * -0.22]}>
+              <boxGeometry args={[0.046, 0.011, 0.012]} />
+            </mesh>
+          ))}
+          <mesh material={m.hair} position={[0, 0.03, 0.118]} rotation={[0.45, 0, 0]} scale={[0.027, 0.024, 0.013]}>
+            <sphereGeometry args={[1, 12, 10]} />
+          </mesh>
+          <mesh material={m.hair} position={[0, 0.052, 0.137]} scale={[0.008, 0.011, 0.006]}>
+            <sphereGeometry args={[1, 8, 6]} />
+          </mesh>
+        </>
+      )}
     </group>
   );
 }
 
 function Leg({ side, hip, knee, m }: { side: number; hip: JointRef; knee: JointRef; m: Materials }) {
   return (
-    <group ref={hip} position={[side * 0.1, -0.04, 0]}>
-      <mesh material={m.shorts} position={[0, -0.1, 0]} castShadow>
-        <cylinderGeometry args={[0.1, 0.09, 0.22, 10]} />
+    <group ref={hip} position={[side * 0.1, -0.06, 0]}>
+      <mesh material={m.shorts} position={[0, -0.08, 0]} castShadow>
+        <cylinderGeometry args={[0.1, 0.092, 0.2, 12]} />
       </mesh>
-      <mesh material={m.skin} position={[0, -0.31, 0]} castShadow>
-        <cylinderGeometry args={[0.072, 0.064, 0.22, 10]} />
+      <mesh material={m.skin} position={[0, -0.28, 0]} castShadow>
+        <capsuleGeometry args={[0.068, 0.16, 4, 12]} />
       </mesh>
-      <group ref={knee} position={[0, -0.43, 0]}>
-        <mesh material={m.sock} position={[0, -0.2, 0]} castShadow>
-          <cylinderGeometry args={[0.066, 0.055, 0.38, 10]} />
+      <group ref={knee} position={[0, -0.41, 0]}>
+        <mesh material={m.skin} position={[0, -0.05, 0]}>
+          <capsuleGeometry args={[0.06, 0.06, 4, 10]} />
         </mesh>
-        <mesh material={m.boot} position={[0, -0.43, 0.04]} castShadow>
-          <boxGeometry args={[0.11, 0.08, 0.25]} />
+        <mesh material={m.socks} position={[0, -0.24, 0]} castShadow>
+          <capsuleGeometry args={[0.062, 0.24, 4, 12]} />
+        </mesh>
+        <mesh material={m.boots} position={[0, -0.44, 0.045]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+          <capsuleGeometry args={[0.058, 0.15, 4, 10]} />
+        </mesh>
+        <mesh material={m.soles} position={[0, -0.495, 0.045]}>
+          <boxGeometry args={[0.1, 0.018, 0.24]} />
         </mesh>
       </group>
     </group>
@@ -380,21 +520,24 @@ function Leg({ side, hip, knee, m }: { side: number; hip: JointRef; knee: JointR
 function Arm({ side, shoulder, elbow, m }: { side: number; shoulder: JointRef; elbow: JointRef; m: Materials }) {
   return (
     <group ref={shoulder} position={[side * 0.27, 0.5, 0]}>
-      <mesh material={m.kit} position={[0, -0.06, 0]} castShadow>
-        <cylinderGeometry args={[0.075, 0.07, 0.16, 10]} />
+      <mesh material={m.kit} position={[0, -0.04, 0]} castShadow>
+        <sphereGeometry args={[0.082, 14, 10]} />
       </mesh>
-      <mesh material={m.trim} position={[0, -0.14, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.068, 0.012, 6, 14]} />
+      <mesh material={m.kit} position={[0, -0.1, 0]} castShadow>
+        <cylinderGeometry args={[0.078, 0.07, 0.13, 12]} />
+      </mesh>
+      <mesh material={m.trim} position={[0, -0.165, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.068, 0.011, 6, 14]} />
       </mesh>
       <mesh material={m.skin} position={[0, -0.215, 0]} castShadow>
-        <cylinderGeometry args={[0.052, 0.048, 0.16, 10]} />
+        <capsuleGeometry args={[0.05, 0.1, 4, 10]} />
       </mesh>
       <group ref={elbow} position={[0, -0.29, 0]}>
         <mesh material={m.skin} position={[0, -0.11, 0]} castShadow>
-          <cylinderGeometry args={[0.047, 0.04, 0.22, 10]} />
+          <capsuleGeometry args={[0.045, 0.16, 4, 10]} />
         </mesh>
-        <mesh material={m.skin} position={[0, -0.25, 0]} castShadow>
-          <sphereGeometry args={[0.05, 10, 8]} />
+        <mesh material={m.hands} position={[0, -0.25, 0]} scale={[0.85, 1, 1]} castShadow>
+          <sphereGeometry args={[0.055, 12, 10]} />
         </mesh>
       </group>
     </group>

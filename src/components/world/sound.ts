@@ -109,3 +109,66 @@ export function playGoal() {
   osc.stop(t + 0.65);
   lfo.stop(t + 0.65);
 }
+
+function tone(t: number, freq: number, peak: number, length: number, type: OscillatorType = 'sine', endFreq?: number) {
+  if (!ctx || !master) return;
+  const osc = ctx.createOscillator();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t);
+  if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, t + length);
+  const gain = ctx.createGain();
+  envelope(gain, t, peak, 0.005, length);
+  osc.connect(gain).connect(master);
+  osc.start(t);
+  osc.stop(t + length + 0.05);
+}
+
+/** Soft blip for menus and page turns. */
+export function playTick() {
+  if (!ctx || muted) return;
+  tone(ctx.currentTime, 1250, 0.07, 0.05, 'triangle');
+}
+
+export function playOpen() {
+  if (!ctx || muted) return;
+  const t = ctx.currentTime;
+  noiseBurst(t, 'bandpass', 900, 0.8, 0.12, 0.08, 0.25);
+  tone(t + 0.02, 520, 0.06, 0.18, 'sine', 880);
+}
+
+export function playClose() {
+  if (!ctx || muted) return;
+  const t = ctx.currentTime;
+  noiseBurst(t, 'bandpass', 700, 0.8, 0.1, 0.06, 0.2);
+  tone(t, 760, 0.05, 0.16, 'sine', 440);
+}
+
+export function playShutter() {
+  if (!ctx || muted) return;
+  const t = ctx.currentTime;
+  noiseBurst(t, 'highpass', 2500, 0.7, 0.3, 0.002, 0.03);
+  noiseBurst(t + 0.07, 'highpass', 1800, 0.7, 0.22, 0.002, 0.04);
+}
+
+/** Countdown beep; the final one is higher. */
+export function playBeep(go: boolean) {
+  if (!ctx || muted) return;
+  tone(ctx.currentTime, go ? 1320 : 660, 0.12, go ? 0.35 : 0.16, 'square');
+}
+
+export function playBuzzer() {
+  if (!ctx || muted) return;
+  tone(ctx.currentTime, 180, 0.16, 0.8, 'sawtooth', 150);
+}
+
+export function playSwish() {
+  if (!ctx || muted) return;
+  noiseBurst(ctx.currentTime, 'bandpass', 3200, 1.2, 0.3, 0.02, 0.22);
+}
+
+export function playRim(strength: number) {
+  if (!ctx || muted) return;
+  const t = ctx.currentTime;
+  tone(t, 420, Math.min(0.25, 0.08 + strength * 0.03), 0.25, 'triangle', 380);
+  tone(t, 1130, Math.min(0.12, 0.04 + strength * 0.015), 0.18, 'sine');
+}
