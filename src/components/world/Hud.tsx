@@ -5,9 +5,10 @@ import { basketball } from './games/basketballState';
 import { CHALLENGE_SECONDS, quitChallenge, startChallenge, tickChallenge } from './games/challenge';
 import { clearInput, input } from './input';
 import { stationById, type StationId } from './layout';
+import { MapOverlay, toggleMap } from './MapOverlay';
 import { initAudio, setMuted } from './sound';
 import { PSP_MENU } from './stations/pspMenu';
-import { fx, MUTE_KEY, useWorld, world } from './store';
+import { bodies, fx, MUTE_KEY, useWorld, world } from './store';
 
 function start() {
   initAudio();
@@ -65,12 +66,14 @@ export function Hud() {
         if (isControl(e.target)) return;
         e.preventDefault();
         interact();
-      } else if (e.code === 'Escape' || e.code === 'Backspace') back();
+      } else if (e.code === 'Escape' || e.code === 'Backspace') {
+        if (s.mapOpen) toggleMap(false);
+        else back();
+      } else if (e.code === 'KeyM') toggleMap();
       else if (e.code in ARROWS) {
         if (arrow(...ARROWS[e.code])) e.preventDefault();
       } else if (e.code === 'KeyO') openCurrent();
       else if (e.code === 'KeyR' && s.mode === 'play') input.resetBall = true;
-      else if (e.code === 'KeyM') toggleMute();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -106,6 +109,7 @@ export function Hud() {
           {(mode === 'soccer' || mode === 'basketball') && <ChallengeHud kind={mode} />}
           {(mode === 'play' || mode === 'soccer' || mode === 'basketball') && <ChargeMeter kind={mode} />}
           {touch && (mode === 'play' || mode === 'soccer' || mode === 'basketball') && <TouchControls />}
+          <MapOverlay />
         </>
       )}
     </div>
@@ -199,6 +203,21 @@ function TopBar() {
       <div className="world-topbar-actions">
         <button
           type="button"
+          className="world-pill world-pill-button"
+          onClick={(e) => {
+            toggleMap();
+            e.currentTarget.blur();
+          }}
+          aria-label="Open the park map"
+        >
+          <span aria-hidden="true">🗺️</span>
+          <span className="world-pill-label" aria-hidden="true">
+            {' '}
+            Map
+          </span>
+        </button>
+        <button
+          type="button"
           className="world-icon-btn"
           onClick={(e) => {
             toggleMute();
@@ -212,7 +231,7 @@ function TopBar() {
           </svg>
         </button>
         <a className="world-pill" href={CLASSIC_URL}>
-          Classic site
+          Classic<span className="world-pill-label"> site</span>
         </a>
       </div>
     </header>
@@ -233,6 +252,7 @@ function ControlsHint() {
       <span><kbd>Shift</kbd> sprint</span>
       <span><kbd>Space</kbd> hold to shoot</span>
       <span><kbd>Enter</kbd> interact</span>
+      <span><kbd>M</kbd> map</span>
       <span><kbd>R</kbd> reset ball</span>
     </div>
   );
@@ -240,9 +260,12 @@ function ControlsHint() {
 
 function GoalBanner() {
   const goalAt = useWorld((s) => s.goalAt);
+  // The banner remounts whenever free play resumes; only celebrate goals scored after that.
+  const seen = useRef(goalAt);
   const [shown, setShown] = useState(false);
   useEffect(() => {
-    if (!goalAt) return;
+    if (!goalAt || goalAt === seen.current) return;
+    seen.current = goalAt;
     setShown(true);
     const t = setTimeout(() => setShown(false), 1800);
     return () => clearTimeout(t);
@@ -385,7 +408,7 @@ function ChallengeHud({ kind }: { kind: 'soccer' | 'basketball' }) {
       )}
       {challenge.phase === 'playing' && (
         <p className="world-challenge-help">
-          {kind === 'soccer' ? 'Hold Space to power up, release to shoot. Beat the keeper!' : 'Hold Space and release in the green zone.'}
+          {kind === 'soccer' ? 'Hold Space to power up, steer with ← →, release to shoot. Aim for the corners!' : 'Hold Space and release in the green zone.'}
         </p>
       )}
       {challenge.phase === 'done' && (
@@ -414,25 +437,31 @@ function ChallengeHud({ kind }: { kind: 'soccer' | 'basketball' }) {
   );
 }
 
-/** Shot power: a bar that fills while Space is held; basketball shows the sweet spot. */
+/** Shot power: a bar that fills while Space is held; basketball shows the sweet spot for where you stand. */
 function ChargeMeter({ kind }: { kind: 'play' | 'soccer' | 'basketball' }) {
   const fill = useRef<HTMLDivElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
+  const zone = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let raf = 0;
     const loop = () => {
       const c = fx.charge;
       if (fill.current) fill.current.style.transform = `scaleX(${c})`;
       if (wrap.current) wrap.current.classList.toggle('is-visible', c > 0);
+      const p = bodies.player?.translation();
+      if (zone.current && p) {
+        const [lo, hi] = basketball.zone(p);
+        zone.current.style.left = `${lo * 100}%`;
+        zone.current.style.width = `${(hi - lo) * 100}%`;
+      }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, []);
-  const [lo, hi] = basketball.sweetSpot;
   return (
     <div ref={wrap} className="world-meter" aria-hidden="true">
-      {kind === 'basketball' && <div className="world-meter-zone" style={{ left: `${lo * 100}%`, width: `${(hi - lo) * 100}%` }} />}
+      {kind === 'basketball' && <div ref={zone} className="world-meter-zone" />}
       <div ref={fill} className="world-meter-fill" />
     </div>
   );

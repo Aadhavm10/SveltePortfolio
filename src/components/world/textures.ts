@@ -1,6 +1,7 @@
 import { CanvasTexture, SRGBColorSpace } from 'three';
 
-export const FONT = '"Inter Variable", Inter, system-ui, sans-serif';
+export const FONT = '"Nunito Variable", "Inter Variable", system-ui, sans-serif';
+export const DISPLAY_FONT = '"Fredoka Variable", "Nunito Variable", system-ui, sans-serif';
 
 export type Draw = (ctx: CanvasRenderingContext2D, width: number, height: number) => void;
 

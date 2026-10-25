@@ -47,6 +47,9 @@ export type StationId = 'projects' | 'experience' | 'psp' | 'camera' | 'soccer' 
 
 export interface Station {
   id: StationId;
+  /** Short name on the floating sign and the map. */
+  name: string;
+  icon: string;
   /** What the prompt says, e.g. "Enter · Browse my work". */
   label: string;
   /** Where the player stands to interact. */
@@ -76,12 +79,15 @@ export const PROPS = {
   scoreboard: { x: 18.5, z: -10 },
   ballRack: { x: -26.5, z: -7 },
   classicSign: { x: 9, z: 15 },
+  signpost: { x: -5.2, z: 6.8 },
   letters: { x: 0, z: -30 }
 };
 
 export const STATIONS: Station[] = [
   {
     id: 'projects',
+    name: 'Work',
+    icon: '💻',
     label: 'Browse my work',
     x: PROPS.laptop.x,
     z: PROPS.laptop.z + 5.5,
@@ -92,6 +98,8 @@ export const STATIONS: Station[] = [
   },
   {
     id: 'experience',
+    name: 'Experience',
+    icon: '🖥️',
     label: 'See my experience',
     x: PROPS.monitor.x,
     z: PROPS.monitor.z + 5,
@@ -102,6 +110,8 @@ export const STATIONS: Station[] = [
   },
   {
     id: 'psp',
+    name: 'PSP',
+    icon: '🎮',
     label: 'Play with the PSP',
     x: PROPS.psp.x,
     z: PROPS.psp.z + 5,
@@ -112,16 +122,20 @@ export const STATIONS: Station[] = [
   },
   {
     id: 'camera',
+    name: 'Photos',
+    icon: '📷',
     label: 'Look through the camera',
     x: PROPS.camera.x,
     z: PROPS.camera.z + 3.4,
     radius: 2.4,
     promptY: 2.9,
     color: '#ffb3a1',
-    view: { target: [PROPS.camera.x, 1.95, PROPS.camera.z + 0.36], normal: [0, 0.12, 1], width: 1.4, height: 0.9 }
+    view: { target: [PROPS.camera.x + 0.08, 1.88, PROPS.camera.z + 0.25], normal: [0, 0.12, 1], width: 1.5, height: 1.0 }
   },
   {
     id: 'soccer',
+    name: 'Shooting challenge',
+    icon: '⚽',
     label: 'Start the shooting challenge',
     x: PROPS.scoreboard.x - 2,
     z: PROPS.scoreboard.z + 1,
@@ -131,6 +145,8 @@ export const STATIONS: Station[] = [
   },
   {
     id: 'basketball',
+    name: '3-point shootout',
+    icon: '🏀',
     label: 'Start the 3-point shootout',
     x: PROPS.ballRack.x + 0.5,
     z: PROPS.ballRack.z + 2.2,
@@ -140,6 +156,8 @@ export const STATIONS: Station[] = [
   },
   {
     id: 'classic',
+    name: 'Classic site',
+    icon: '🪧',
     label: 'Go to the classic site',
     x: PROPS.classicSign.x,
     z: PROPS.classicSign.z + 2,
@@ -161,8 +179,33 @@ export const PATHS: [number, number][][] = [
   [[2, 5], [4, 9.5], [8, 16]]
 ];
 
+/** Shallow streams (you can wade through them); each is a polyline of control points. */
+export const STREAMS: { points: [number, number][]; width: number }[] = [
+  // From the waterfall into the pond
+  { points: [[15, -52.5], [14.4, -49.6], [15, -46.6]], width: 2.6 },
+  // West brook, past the zen garden into the pond
+  { points: [[-58, -29], [-46, -33], [-36, -40], [-24, -45], [-10, -46.5], [0, -45], [5.5, -41.5]], width: 2.6 },
+  // East outflow towards the hills
+  { points: [[26.5, -40.5], [34, -42], [42, -38.5], [47, -31], [54, -25]], width: 2.4 },
+  // South brook along the meadow
+  { points: [[-58, 13], [-44, 9.5], [-32, 12], [-20, 18], [-8, 22.5], [2, 29]], width: 2.2 }
+];
+
+/** Bridges: which stream, and how far along it (0..1). The first is the red arched one by the zen garden. */
+export const BRIDGES: { stream: number; t: number }[] = [
+  { stream: 1, t: 0.8 },
+  { stream: 1, t: 0.3 },
+  { stream: 2, t: 0.46 },
+  { stream: 3, t: 0.36 }
+];
+
+export const WATERFALL = { x: 15, z: -53.4, width: 4.2, height: 3.4 };
+export const ZEN_GARDEN = { x: -6, z: -38.5, w: 9, d: 6 };
+
 /** Spots kept clear of trees and rocks (besides the areas above). */
 export const CLEARINGS = [
+  { x: ZEN_GARDEN.x, z: ZEN_GARDEN.z, r: 6.5 },
+  { x: WATERFALL.x, z: WATERFALL.z, r: 6 },
   { x: PROPS.letters.x, z: PROPS.letters.z, r: 9 },
   { x: PROPS.laptop.x, z: PROPS.laptop.z + 2, r: 8 },
   { x: PROPS.monitor.x, z: PROPS.monitor.z + 2, r: 7.5 },

@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { Group, MathUtils, Mesh, MeshBasicMaterial } from 'three';
 import { STATIONS, type Station } from '../layout';
-import { useWorld, world } from '../store';
+import { bodies, useWorld, world } from '../store';
 import { canvasTexture } from '../textures';
 
 function ringTexture() {
@@ -21,7 +21,9 @@ function ringTexture() {
 function Marker({ station, ring }: { station: Station; ring: ReturnType<typeof ringTexture> }) {
   const gem = useRef<Group>(null);
   const pad = useRef<Mesh>(null);
+  const sign = useRef<HTMLDivElement>(null);
   const near = useWorld((s) => s.near === station.id);
+  const touch = useWorld((s) => s.touch);
   const materials = useMemo(
     () => ({
       gem: new MeshBasicMaterial({ color: station.color, toneMapped: false, transparent: true }),
@@ -32,8 +34,8 @@ function Marker({ station, ring }: { station: Station; ring: ReturnType<typeof r
 
   useFrame((state, delta) => {
     const t = state.clock.elapsedTime;
-    const { mode } = world.get();
-    const shown = mode === 'play' ? 1 : 0;
+    const { mode, mapOpen } = world.get();
+    const shown = mode === 'play' && !mapOpen ? 1 : 0;
     const active = world.get().near === station.id;
     if (gem.current) {
       gem.current.position.y = station.promptY + Math.sin(t * 2 + station.x) * 0.12;
@@ -42,6 +44,12 @@ function Marker({ station, ring }: { station: Station; ring: ReturnType<typeof r
     }
     materials.pad.opacity = MathUtils.damp(materials.pad.opacity, shown * (active ? 1 : 0.55), 8, delta);
     if (pad.current) pad.current.scale.setScalar(station.radius * (1 + Math.sin(t * 3) * 0.03));
+    // Signs stay readable nearby and fade out across the park.
+    const p = bodies.player?.translation();
+    if (sign.current && p) {
+      const dist = Math.hypot(p.x - station.x, p.z - station.z);
+      sign.current.style.opacity = String(shown * MathUtils.clamp(1 - (dist - 24) / 14, 0, 1));
+    }
   });
 
   return (
@@ -54,19 +62,18 @@ function Marker({ station, ring }: { station: Station; ring: ReturnType<typeof r
           <octahedronGeometry args={[1, 0]} />
         </mesh>
       </group>
-      {near && (
-        <Html position={[0, station.promptY + 0.75, 0]} center zIndexRange={[20, 0]} pointerEvents="none">
-          <div className="world-marker" style={{ '--accent': station.color } as CSSProperties}>
-            <kbd>Enter</kbd>
-            {station.label}
-          </div>
-        </Html>
-      )}
+      <Html position={[0, station.promptY + 0.75, 0]} center zIndexRange={[20, 0]} pointerEvents="none">
+        <div ref={sign} className={`world-sign${near ? ' is-near' : ''}`} style={{ '--accent': station.color } as CSSProperties}>
+          <span aria-hidden="true">{station.icon}</span>
+          {near ? station.label : station.name}
+          {near && !touch && <kbd>Enter</kbd>}
+        </div>
+      </Html>
     </group>
   );
 }
 
-/** Bobbing gems over each interaction point, with a label when you're close. */
+/** Bobbing gems and name signs over each interaction point; the sign becomes a prompt up close. */
 export function Markers() {
   const ring = useMemo(ringTexture, []);
   return (

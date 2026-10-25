@@ -8,8 +8,9 @@ import { bindKeyboard } from './input';
 import { setMuted } from './sound';
 import { GOLDEN } from './env/palette';
 import { MUTE_KEY, PHYSICS_STEP, useWorld, world } from './store';
+import '@fontsource-variable/fredoka';
+import '@fontsource-variable/nunito';
 import './world.css';
-
 
 export default function World() {
   const [fontsReady, setFontsReady] = useState(false);
@@ -26,10 +27,11 @@ export default function World() {
     const touch = window.matchMedia('(pointer: coarse)').matches;
     world.set({ touch, muted, quality: touch ? 'low' : 'high' });
 
-    // Canvas textures draw with Inter, so wait for it (but never block on it for long).
-    const fonts = Promise.all(
-      ['500', '700', '800', '900'].map((weight) => document.fonts.load(`${weight} 64px "Inter Variable"`))
-    );
+    // Canvas textures draw with these fonts, so wait for them (but never block on it for long).
+    const fonts = Promise.all([
+      ...['500', '700', '800', '900'].map((weight) => document.fonts.load(`${weight} 64px "Nunito Variable"`)),
+      ...['500', '600', '700'].map((weight) => document.fonts.load(`${weight} 64px "Fredoka Variable"`))
+    ]);
     const timeout = new Promise((resolve) => setTimeout(resolve, 3000));
     Promise.race([fonts, timeout])
       .catch(() => {})

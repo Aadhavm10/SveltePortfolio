@@ -1,6 +1,7 @@
-import { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
-import type { DirectionalLight } from 'three';
+import { useEffect, useRef } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { PMREMGenerator, type DirectionalLight } from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { bodies, world } from '../store';
 import { GOLDEN, SUN_DIR } from './palette';
 
@@ -9,6 +10,21 @@ const SHADOW_EXTENT = 28;
 /** Low warm sun (its shadow camera follows the player), a sky fill and a soft front fill. */
 export function Lights() {
   const sun = useRef<DirectionalLight>(null);
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+
+  // A soft studio reflection so metal (the PSP, camera and laptop) catches light.
+  useEffect(() => {
+    const pmrem = new PMREMGenerator(gl);
+    const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = env;
+    scene.environmentIntensity = 0.35;
+    return () => {
+      scene.environment = null;
+      env.dispose();
+      pmrem.dispose();
+    };
+  }, [gl, scene]);
   const mapSize = world.get().quality === 'low' ? 1024 : 2048;
 
   useFrame(({ camera }) => {

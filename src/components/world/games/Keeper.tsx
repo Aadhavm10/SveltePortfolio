@@ -7,9 +7,10 @@ import { playBump } from '../sound';
 import { bodies, PHYSICS_STEP } from '../store';
 
 const LINE_Z = GOAL.z + 0.55;
-const REACTION = 0.2;
-const DIVE_TIME = 0.42;
-const MAX_REACH = GOAL.width / 2 - 0.35;
+/** Tuned so well-placed corner shots beat him and tame ones down the middle don't. */
+const REACTION = 0.36;
+const DIVE_TIME = 0.62;
+const MAX_REACH = GOAL.width / 2 - 1.1;
 
 /** performance.now() of the keeper's last touch on the ball; read by the shooting challenge. */
 export const keeperTouch = { at: 0 };
@@ -80,7 +81,7 @@ export function Keeper() {
             if (k.time >= k.reactAt) {
               let aimX = MathUtils.clamp(px, GOAL.x - MAX_REACH, GOAL.x + MAX_REACH);
               // Sometimes he guesses wrong.
-              if (Math.random() < 0.12) aimX = GOAL.x - (aimX - GOAL.x);
+              if (Math.random() < 0.25) aimX = GOAL.x - (aimX - GOAL.x);
               if (Math.abs(aimX - k.x) < 0.7 && py < 1.6) {
                 target = aimX;
               } else {

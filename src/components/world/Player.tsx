@@ -7,6 +7,7 @@ import { BALL_MASS, BALL_RADIUS } from './Ball';
 import { basketball } from './games/basketballState';
 import { HeldBasketball } from './games/Court';
 import { input, isShootHeld, readMove } from './input';
+import { groundOffset, inWater } from './env/Streams';
 import { BOUNDS, GOAL, SPAWN, STATIONS } from './layout';
 import { playKick, playTouch } from './sound';
 import { bodies, fx, PHYSICS_STEP, world } from './store';
@@ -18,6 +19,9 @@ const ACCEL = 7;
 const BRAKE = 11;
 const TURN = 11;
 const CHARGE_TIME = 0.85;
+/** While charging a kick you stand still and left/right swings the aim, up to AIM_RANGE either way. */
+const AIM_TURN = 0.9;
+const AIM_RANGE = 0.65;
 const KICK_TIME = 0.42;
 /** How far the ball can be (centre to centre, metres) for a dribble touch or shot. */
 const TOUCH_REACH = 1.3;
@@ -26,6 +30,20 @@ const KICK_REACH = 1.75;
 const FOOT_OFFSET = 0.28;
 
 const NO_MOVE = { x: 0, z: 0, amount: 0, sprint: false };
+
+/**
+ * The point on the goal mouth a shot would go to: where the player's facing crosses the goal line,
+ * kept inside the posts. Harder shots fly higher (still under the bar). Null when not facing the goal.
+ */
+export function goalAim(fromX: number, fromZ: number, yaw: number, charge: number) {
+  const dz = GOAL.z + 0.2 - fromZ;
+  const fz = Math.cos(yaw);
+  if (dz > -1.5 || dz < -34 || fz > -0.3) return null;
+  const crossX = fromX + Math.sin(yaw) * (dz / fz);
+  if (Math.abs(crossX - GOAL.x) > GOAL.width / 2 + 3) return null;
+  const half = GOAL.width / 2 - 0.35;
+  return { x: MathUtils.clamp(crossX, GOAL.x - half, GOAL.x + half), y: 0.35 + charge * 1.4 };
+}
 
 /** Moves `current` toward `target` along the shortest arc. */
 function dampAngle(current: number, target: number, lambda: number, dt: number) {
@@ -40,6 +58,7 @@ export function Player() {
   const body = useRef<RapierRigidBody>(null);
   const model = useRef<Group>(null);
   const aim = useRef<Group>(null);
+  const ripples = useRef<Group>(null);
   const aimShaft = useRef<Mesh>(null);
   const aimHead = useRef<Mesh>(null);
   const pose = useMemo(createPose, []);
@@ -58,10 +77,15 @@ export function Player() {
       fz: -1,
       charging: false,
       charge: 0,
+      aimBase: 0,
+      aimOffset: 0,
+      aimMin: 0,
+      aimMax: 0,
       kickT: -1,
       kickPower: 0,
       kicked: false,
       shootT: -1,
+      shotAt: -1,
       touchCooldown: 0,
       lastGoal: 0,
       time: 0,
@@ -78,7 +102,7 @@ export function Player() {
     bodies.player = rb;
     const dt = PHYSICS_STEP;
     s.time += dt;
-    const { started, mode, goalAt, challenge } = world.get();
+    const { started, mode, goalAt, challenge, mapOpen } = world.get();
 
     if (playerCommands.teleport) {
       const t = playerCommands.teleport;
@@ -103,13 +127,15 @@ export function Player() {
 
     const celebrating = pose.celebrate >= 0 && pose.celebrate < 1.6;
     const countdown = challenge?.phase === 'countdown' || challenge?.phase === 'done';
-    const locked = !started || mode === 'station' || celebrating || countdown;
+    const locked = !started || mapOpen || mode === 'station' || celebrating || countdown;
     const move = locked ? NO_MOVE : readMove();
     if (move.amount > 0 && !world.get().moved) world.set({ moved: true });
     const hoops = mode === 'basketball';
 
-    // Velocity eases toward the target; braking is quicker than speeding up.
-    const slow = s.charging ? 0.4 : s.kickT >= 0 || s.shootT >= 0 ? 0.3 : 1;
+    // Velocity eases toward the target; braking is quicker than speeding up. Wading is a little slower.
+    const here = rb.translation();
+    const wading = inWater(here.x, here.z);
+    const slow = (s.charging ? (hoops ? 0.4 : 0) : s.kickT >= 0 || s.shootT >= 0 ? 0.3 : 1) * (wading ? 0.8 : 1);
     const maxSpeed = (move.sprint && !hoops ? SPRINT_SPEED : RUN_SPEED) * slow * move.amount;
     const tx = move.x * maxSpeed;
     const tz = move.z * maxSpeed;
@@ -124,7 +150,13 @@ export function Player() {
     const prevYaw = s.yaw;
     if (pose.celebrate >= 0) s.yaw = dampAngle(s.yaw, 0, 7, dt);
     else if (hoops && (s.charging || s.shootT >= 0)) s.yaw = dampAngle(s.yaw, basketball.aimYaw(rb.translation()), 14, dt);
-    else if (move.amount > 0.05) s.yaw = dampAngle(s.yaw, Math.atan2(move.x, move.z), TURN, dt);
+    else if (s.charging) {
+      // Left/right swing the shot left/right as seen from the camera.
+      const r = fx.camRight;
+      const toRight = Math.cos(s.yaw) * r.x - Math.sin(s.yaw) * r.z < 0 ? -1 : 1;
+      s.aimOffset = MathUtils.clamp(s.aimOffset + move.x * AIM_TURN * dt * toRight, s.aimMin, s.aimMax);
+      s.yaw = dampAngle(s.yaw, s.aimBase + s.aimOffset, 14, dt);
+    } else if (move.amount > 0.05) s.yaw = dampAngle(s.yaw, Math.atan2(move.x, move.z), TURN, dt);
     s.fx = Math.sin(s.yaw);
     s.fz = Math.cos(s.yaw);
     fx.facing.x = s.fx;
@@ -145,6 +177,7 @@ export function Player() {
     if (locked && s.charging) {
       s.charging = false;
       pose.charge = 0;
+      fx.aim.visible = false;
     }
 
     // Basketball: hold to dip, release to shoot.
@@ -222,20 +255,52 @@ export function Player() {
       ball.applyImpulse({ x: -bv.x * t, y: 0, z: -bv.z * t }, true);
     }
 
+    if (s.shotAt >= 0 && s.time - s.shotAt > 1.3) s.shotAt = -1;
+    // Water slows a rolling ball.
+    if (s.shotAt < 0) ball.setLinearDamping(inWater(bp.x, bp.z) ? 2.2 : 0.55);
+
     // Shooting: hold to charge, release to strike.
     if (shootHeld && !s.charging && s.kickT < 0) {
       s.charging = true;
       s.charge = 0;
+      s.aimOffset = 0;
+      // Lining up roughly at goal with the ball at your feet: square up to the goal's centre.
+      const toGoal = Math.atan2(GOAL.x - bp.x, GOAL.z - bp.z);
+      const off = Math.atan2(Math.sin(toGoal - s.yaw), Math.cos(toGoal - s.yaw));
+      if (ballDist < KICK_REACH && bp.z > GOAL.z && Math.abs(off) < 0.8) {
+        // Keep the aim between the posts.
+        s.aimBase = toGoal;
+        const half = GOAL.width / 2 - 0.35;
+        const post = (x: number) => {
+          const a = Math.atan2(x - bp.x, GOAL.z - bp.z) - toGoal;
+          return Math.atan2(Math.sin(a), Math.cos(a));
+        };
+        const a = post(GOAL.x - half);
+        const b = post(GOAL.x + half);
+        s.aimMin = Math.min(a, b) - 0.04;
+        s.aimMax = Math.max(a, b) + 0.04;
+      } else {
+        s.aimBase = s.yaw;
+        s.aimMin = -AIM_RANGE;
+        s.aimMax = AIM_RANGE;
+      }
     }
     if (s.charging) {
       s.charge = Math.min(1, s.charge + dt / CHARGE_TIME);
       pose.charge = s.charge;
+      const target = ballDist < KICK_REACH ? goalAim(bp.x, bp.z, s.yaw, s.charge) : null;
+      fx.aim.visible = !!target;
+      if (target) {
+        fx.aim.x = target.x;
+        fx.aim.y = target.y;
+      }
       if (!shootHeld) {
         s.charging = false;
         s.kickT = 0;
         s.kicked = false;
         s.kickPower = s.charge;
         pose.charge = 0;
+        fx.aim.visible = false;
       }
     }
     if (s.kickT >= 0) {
@@ -245,26 +310,26 @@ export function Player() {
         s.kicked = true;
         if (ballDist < KICK_REACH && ahead > -0.25 && bp.y < 1.2) {
           const p = s.kickPower;
-          const power = 7 + p * 20;
-          const lift = 0.6 + p * p * 6.5;
-          // A little help toward the goal when roughly facing it.
-          let dirX = s.fx;
-          let dirZ = s.fz;
-          const gx = GOAL.x - bp.x;
-          const gz = GOAL.z - bp.z;
-          const gDist = Math.hypot(gx, gz);
-          const off = Math.atan2(gx, gz) - s.yaw;
-          const diff = Math.atan2(Math.sin(off), Math.cos(off));
-          if (gDist < 32 && Math.abs(diff) < 0.4) {
-            const yaw = s.yaw + diff * 0.45;
-            dirX = Math.sin(yaw);
-            dirZ = Math.cos(yaw);
+          let vx = s.fx * (7 + p * 20);
+          let vz = s.fz * (7 + p * 20);
+          let vy = 0.6 + p * p * 6.5;
+          // Facing the goal: the shot flies straight to the aimed spot on the goal mouth.
+          const target = goalAim(bp.x, bp.z, s.yaw, p);
+          if (target) {
+            const tx = target.x - bp.x;
+            const tz = GOAL.z - bp.z;
+            const dist = Math.hypot(tx, tz);
+            const speed = 11 + p * 15;
+            const t = dist / speed;
+            vx = (tx / dist) * speed;
+            vz = (tz / dist) * speed;
+            vy = (target.y - bp.y + 7.5 * t * t) / t;
           }
-          ball.applyImpulse(
-            { x: (dirX * power - bv.x) * BALL_MASS, y: (lift - bv.y) * BALL_MASS, z: (dirZ * power - bv.z) * BALL_MASS },
-            true
-          );
-          ball.setAngvel({ x: (dirZ * power) / BALL_RADIUS / 2, y: 0, z: (-dirX * power) / BALL_RADIUS / 2 }, true);
+          ball.applyImpulse({ x: (vx - bv.x) * BALL_MASS, y: (vy - bv.y) * BALL_MASS, z: (vz - bv.z) * BALL_MASS }, true);
+          ball.setAngvel({ x: vz / BALL_RADIUS / 2, y: 0, z: -vx / BALL_RADIUS / 2 }, true);
+          // Near-ballistic flight so the ball reaches the spot it was aimed at.
+          ball.setLinearDamping(0.03);
+          s.shotAt = s.time;
           playKick(p);
           fx.shake = Math.max(fx.shake, p * p * 0.3);
           fx.lastKick = performance.now();
@@ -294,7 +359,22 @@ export function Player() {
     const rb = body.current;
     if (!rb) return;
     const dt = Math.min(delta, 0.1);
-    if (model.current) model.current.rotation.y = s.yaw;
+    const pp = rb.translation();
+    const lift = groundOffset(pp.x, pp.z);
+    if (model.current) {
+      model.current.rotation.y = s.yaw;
+      model.current.position.y = MathUtils.damp(model.current.position.y, lift, 10, dt);
+    }
+    // Ripples around the legs while wading.
+    if (ripples.current) {
+      const wet = lift < -0.05 ? 1 : 0;
+      ripples.current.children.forEach((child, i) => {
+        const k = (s.time * (0.9 + Math.min(1, pose.speed / 6)) + i * 0.5) % 1;
+        child.scale.setScalar(0.45 + k * 1.1);
+        const m = (child as Mesh).material as MeshBasicMaterial;
+        m.opacity = MathUtils.damp(m.opacity, wet * (1 - k) * 0.7, 12, dt);
+      });
+    }
 
     // Aim arrow grows with the shot charge (soccer only).
     if (aim.current && aimShaft.current && aimHead.current) {
@@ -311,7 +391,6 @@ export function Player() {
     if (s.nearTimer <= 0) {
       s.nearTimer = 0.1;
       const { mode, near } = world.get();
-      const pp = rb.translation();
       const found = mode === 'play' ? (STATIONS.find((st) => Math.hypot(pp.x - st.x, pp.z - st.z) < st.radius)?.id ?? null) : null;
       if (found !== near) world.set({ near: found });
     }
@@ -330,6 +409,14 @@ export function Player() {
       <group ref={model} rotation={[0, Math.PI, 0]} scale={0.92}>
         <Character pose={pose} look={AADHAV} />
         <HeldBasketball />
+      </group>
+      <group ref={ripples} position={[0, -0.03, 0]}>
+        {[0, 1].map((i) => (
+          <mesh key={i} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2}>
+            <ringGeometry args={[0.5, 0.58, 28]} />
+            <meshBasicMaterial color="#ffffff" transparent opacity={0} depthWrite={false} />
+          </mesh>
+        ))}
       </group>
       <group ref={aim} position={[0, 0.04, 0]}>
         <mesh ref={aimShaft} geometry={shaftGeometry} material={aimMaterial} position={[0, 0, 0.45]} rotation={[Math.PI / 2, 0, 0]} />

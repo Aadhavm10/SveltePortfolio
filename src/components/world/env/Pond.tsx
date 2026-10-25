@@ -5,6 +5,7 @@ import {
   Color,
   ConeGeometry,
   DodecahedronGeometry,
+  Group,
   InstancedMesh,
   Object3D,
   ShaderMaterial,
@@ -166,6 +167,52 @@ function LilyPads() {
   );
 }
 
+const KOI_COLORS = ['#ff8a3d', '#fff4ea', '#ff6b4a', '#ffd166', '#fff4ea'];
+
+/** Koi lazily circling just under the surface. */
+function Koi() {
+  const group = useRef<Group>(null);
+  const fish = useMemo(() => {
+    const rand = seeded(61);
+    return KOI_COLORS.map((color, i) => ({ color, r: 0.25 + rand() * 0.45, speed: (0.12 + rand() * 0.1) * (i % 2 ? 1 : -1), phase: rand() * 6, s: 0.8 + rand() * 0.4 }));
+  }, []);
+  useFrame((state) => {
+    const t = state.clock.elapsedTime;
+    group.current?.children.forEach((child, i) => {
+      const f = fish[i];
+      const a = f.phase + t * f.speed;
+      const r = f.r + Math.sin(t * 0.3 + i) * 0.06;
+      child.position.set(POND.x + Math.cos(a) * POND.rx * r, -0.05, POND.z + Math.sin(a) * POND.rz * r);
+      // Face along the direction of travel, with a little wiggle.
+      const dx = -Math.sin(a) * POND.rx * Math.sign(f.speed);
+      const dz = Math.cos(a) * POND.rz * Math.sign(f.speed);
+      child.rotation.y = Math.atan2(dx, dz) + Math.sin(t * 6 + i) * 0.12;
+    });
+  });
+  return (
+    <group ref={group}>
+      {fish.map((f, i) => (
+        <group key={i} scale={f.s}>
+          <mesh scale={[0.11, 0.04, 0.3]}>
+            <sphereGeometry args={[1, 10, 6]} />
+            <meshLambertMaterial color={f.color} />
+          </mesh>
+          {f.color === '#fff4ea' && (
+            <mesh position={[0, 0.02, 0.08]} scale={[0.07, 0.03, 0.1]}>
+              <sphereGeometry args={[1, 8, 5]} />
+              <meshLambertMaterial color="#ff6b4a" />
+            </mesh>
+          )}
+          <mesh position={[0, 0, -0.33]} rotation={[Math.PI / 2, 0, 0]} scale={[1, 1, 0.35]}>
+            <coneGeometry args={[0.1, 0.16, 4]} />
+            <meshLambertMaterial color={f.color} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
 /** The pond: shimmering water, a rocky shore (which keeps the player out), reeds and lily pads. */
 export function Pond() {
   const material = useMemo(
@@ -180,8 +227,8 @@ export function Pond() {
           UniformsLib.fog,
           {
             uTime: { value: 0 },
-            uDeep: { value: new Color('#1f4f63') },
-            uShallow: { value: new Color('#4f8f8a') },
+            uDeep: { value: new Color('#2e8aa6') },
+            uShallow: { value: new Color('#7accc8') },
             uSky: { value: GOLDEN.sky.clone().lerp(GOLDEN.horizon, 0.5) },
             uSun: { value: GOLDEN.sun },
             uSunDir: { value: SUN_DIR },
@@ -215,6 +262,7 @@ export function Pond() {
       <Rocks />
       <Reeds />
       <LilyPads />
+      <Koi />
       <RigidBody type="fixed" colliders={false}>
         {walls.map((w, i) => (
           <CuboidCollider key={i} args={[w.len / 2 + 0.1, 0.5, 0.25]} position={[w.x, 0.5, w.z]} rotation={[0, -w.angle, 0]} />

@@ -1,7 +1,8 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { BackSide, Mesh, ShaderMaterial } from 'three';
-import { GOLDEN, SUN_DIR } from './palette';
+import { BackSide, Group, IcosahedronGeometry, Mesh, MeshLambertMaterial, ShaderMaterial } from 'three';
+import { mergeParts, type Part } from './merge';
+import { GOLDEN, seeded, SUN_DIR } from './palette';
 
 const vertexShader = /* glsl */ `
   varying vec3 vDir;
@@ -64,8 +65,66 @@ export function Sky() {
   });
 
   return (
-    <mesh ref={mesh} material={material} renderOrder={-1} frustumCulled={false}>
-      <sphereGeometry args={[200, 32, 16]} />
-    </mesh>
+    <>
+      <mesh ref={mesh} material={material} renderOrder={-1} frustumCulled={false}>
+        <sphereGeometry args={[200, 32, 16]} />
+      </mesh>
+      <Clouds />
+    </>
+  );
+}
+
+/** Puffy low-poly clouds drifting slowly around the horizon, lit pink from below by the sun. */
+function Clouds() {
+  const group = useRef<Group>(null);
+  const clouds = useMemo(() => {
+    const rand = seeded(404);
+    return Array.from({ length: 11 }, (_, i) => {
+      const a = (i / 11) * Math.PI * 2 + rand() * 0.4;
+      return {
+        a,
+        r: 150 + rand() * 40,
+        y: 30 + rand() * 26,
+        s: 6 + rand() * 5,
+        blobs: Array.from({ length: 4 + Math.floor(rand() * 3) }, (_, j) => ({
+          x: (j - 2) * 1.3 + (rand() - 0.5),
+          y: rand() * 0.8,
+          z: (rand() - 0.5) * 1.2,
+          s: 0.9 + rand() * 0.8
+        }))
+      };
+    });
+  }, []);
+  const geometry = useMemo(() => {
+    const blob = new IcosahedronGeometry(1, 1);
+    const parts: Part[] = [];
+    for (const c of clouds) {
+      const cx = Math.cos(c.a) * c.r;
+      const cz = Math.sin(c.a) * c.r;
+      const ry = -c.a + Math.PI / 2;
+      for (const b of c.blobs) {
+        // The blob's offset, scaled and turned with its cloud.
+        const ox = b.x * c.s;
+        const oz = b.z * c.s;
+        parts.push({
+          geometry: blob,
+          position: [cx + ox * Math.cos(ry) + oz * Math.sin(ry), c.y + b.y * c.s, cz - ox * Math.sin(ry) + oz * Math.cos(ry)],
+          rotation: [0, ry, 0],
+          scale: [b.s * c.s, b.s * 0.7 * c.s, b.s * c.s]
+        });
+      }
+    }
+    return mergeParts(parts);
+  }, [clouds]);
+  const material = useMemo(() => new MeshLambertMaterial({ color: '#ffffff', emissive: '#ffd6c4', emissiveIntensity: 0.3, flatShading: true, fog: false }), []);
+
+  useFrame((state) => {
+    if (group.current) group.current.rotation.y = state.clock.elapsedTime * 0.004;
+  });
+
+  return (
+    <group ref={group} position={[0, 0, -16]}>
+      <mesh geometry={geometry} material={material} frustumCulled={false} />
+    </group>
   );
 }

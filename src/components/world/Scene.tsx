@@ -8,6 +8,8 @@ import { Lights } from './env/Lights';
 import { Paths } from './env/Paths';
 import { Pond } from './env/Pond';
 import { Sky } from './env/Sky';
+import { Streams } from './env/Streams';
+import { ZenGarden } from './env/ZenGarden';
 import { Court } from './games/Court';
 import { Field } from './games/Field';
 import { Player } from './Player';
@@ -29,6 +31,8 @@ export function Scene() {
       <Grass />
       <Paths />
       <Pond />
+      <Streams />
+      <ZenGarden />
       <Trees />
       <Scatter />
       <Dust />

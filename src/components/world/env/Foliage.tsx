@@ -31,7 +31,7 @@ interface Item {
 const windUniform = { value: 0 };
 
 /** Lambert material whose vertices sway with the wind above `pivot` metres. */
-function swayingMaterial(pivot: number, strength: number, flatShading = true) {
+export function swayingMaterial(pivot: number, strength: number, flatShading = true) {
   const material = new MeshLambertMaterial({ flatShading, vertexColors: true });
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uWind = windUniform;
@@ -87,8 +87,19 @@ function pineCanopy() {
   return shade(mergeGeometries(cones), 1.0, 4.5, 0.6, 1.1);
 }
 
-const ROUND_COLORS = ['#5d8d3b', '#6c9b3e', '#4f7f35', '#7aa547', '#d98a3c', '#e8b14c', '#c9653d', '#6c9b3e', '#5d8d3b', '#f0a1b2'];
-const PINE_COLORS = ['#3f6e3c', '#4a7a42', '#365f37'];
+const ROUND_COLORS = ['#5f9a40', '#6fa843', '#579038', '#82b34c', '#e39a48', '#efc05a', '#f3a7bd', '#6fa843', '#5f9a40', '#f6b8c9'];
+const SAKURA = ['#f7b9cb', '#f3a5bc', '#fbcad7'];
+/** Cherry trees placed by hand around the quiet corners. */
+const SAKURA_SPOTS: [number, number][] = [
+  [-16.5, -31],
+  [7.5, -50.5],
+  [23.5, -50],
+  [-20, 7.5],
+  [21.5, 9],
+  [-30, -46],
+  [40, -46]
+];
+const PINE_COLORS = ['#447a42', '#4f8648', '#3c6b3d'];
 
 function useInstances(ref: RefObject<InstancedMesh | null>, items: Item[], squash = 1) {
   useLayoutEffect(() => {
@@ -145,6 +156,12 @@ export function Trees() {
         place(minX - offset, z);
         place(maxX + offset, z);
       }
+    }
+
+    for (const [x, z] of SAKURA_SPOTS) {
+      const item = { x, y: 0, z, s: 1 + rand() * 0.25, ry: rand() * 6 };
+      round.push({ ...item, color: SAKURA[Math.floor(rand() * SAKURA.length)] });
+      colliders.push({ x, z, r: 0.3 * item.s });
     }
 
     // Groves scattered inside the park.

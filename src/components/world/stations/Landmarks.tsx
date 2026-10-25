@@ -3,8 +3,8 @@ import { CuboidCollider, RigidBody } from '@react-three/rapier';
 import { FontLoader, type FontData } from 'three/examples/jsm/loaders/FontLoader.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 import fontJson from 'three/examples/fonts/helvetiker_bold.typeface.json';
-import { canvasTexture, FONT } from '../textures';
-import { PALETTE, PROPS } from '../layout';
+import { canvasTexture, DISPLAY_FONT, FONT } from '../textures';
+import { PALETTE, PROPS, stationById, type StationId } from '../layout';
 
 /** Giant name letters behind the goal; knock them over with a wild shot. */
 function NameLetters() {
@@ -85,11 +85,79 @@ function ClassicSign() {
   );
 }
 
+const POINTERS: { id: StationId; text: string }[] = [
+  { id: 'projects', text: 'Work' },
+  { id: 'psp', text: 'PSP' },
+  { id: 'camera', text: 'Photos' },
+  { id: 'basketball', text: 'Hoops' }
+];
+
+/** A wooden signpost by the spawn point, one arrow plank per place. */
+function Signpost() {
+  const planks = useMemo(() => {
+    const { x, z } = PROPS.signpost;
+    return POINTERS.map(({ id, text }, i) => {
+      const s = stationById[id];
+      const label = canvasTexture(512, 128, (ctx, w, h) => {
+        ctx.fillStyle = '#f6e7c8';
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = s.color;
+        ctx.beginPath();
+        ctx.arc(62, h / 2, 26, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#5a4030';
+        ctx.font = `600 70px ${DISPLAY_FONT}`;
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, 112, h / 2 + 4);
+      });
+      return { label, yaw: Math.atan2(-(s.z - z), s.x - x), y: 2.25 - i * 0.42, color: s.color };
+    });
+  }, []);
+  const { x, z } = PROPS.signpost;
+  return (
+    <group position={[x, 0, z]}>
+      <RigidBody type="fixed" colliders={false}>
+        <CuboidCollider args={[0.12, 1.3, 0.12]} position={[0, 1.3, 0]} />
+      </RigidBody>
+      <mesh position={[0, 1.3, 0]} castShadow>
+        <cylinderGeometry args={[0.09, 0.11, 2.6, 8]} />
+        <meshLambertMaterial color="#8a5d3b" />
+      </mesh>
+      <mesh position={[0, 2.62, 0]} castShadow>
+        <coneGeometry args={[0.16, 0.2, 8]} />
+        <meshLambertMaterial color="#e9775a" />
+      </mesh>
+      {planks.map((p, i) => (
+        <group key={i} position={[0, p.y, 0]} rotation={[0, p.yaw, 0]}>
+          <mesh position={[0.72, 0, 0]} castShadow>
+            <boxGeometry args={[1.2, 0.34, 0.07]} />
+            <meshLambertMaterial color="#c99a68" />
+          </mesh>
+          {/* Arrow tip */}
+          <mesh position={[1.32, 0, 0]} rotation={[0, 0, Math.PI / 4]} castShadow>
+            <boxGeometry args={[0.24, 0.24, 0.07]} />
+            <meshLambertMaterial color="#c99a68" />
+          </mesh>
+          <mesh position={[0.72, 0, 0.037]}>
+            <planeGeometry args={[1.1, 0.27]} />
+            <meshLambertMaterial map={p.label} />
+          </mesh>
+          <mesh position={[0.72, 0, -0.037]} rotation={[0, Math.PI, 0]}>
+            <planeGeometry args={[1.1, 0.27]} />
+            <meshLambertMaterial map={p.label} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
 export function Landmarks() {
   return (
     <>
       <NameLetters />
       <ClassicSign />
+      <Signpost />
     </>
   );
 }

@@ -1,6 +1,10 @@
 import { CatmullRomCurve3, CanvasTexture, LinearFilter, Vector3 } from 'three';
-import { CLEARINGS, COURT, FIELD, PATHS, POND, PROPS } from '../layout';
-import { pondDistance } from './Ground';
+import { CLEARINGS, COURT, FIELD, PATHS, POND, PROPS, STREAMS, ZEN_GARDEN } from '../layout';
+
+/** Normalised elliptical distance from the pond centre (1 = shoreline). */
+export function pondDistance(x: number, z: number) {
+  return Math.hypot((x - POND.x) / POND.rx, (z - POND.z) / POND.rz);
+}
 
 /** World rectangle covered by the grass mask. */
 export const MASK_RECT = { minX: -64, minZ: -64, width: 124, depth: 98 };
@@ -11,6 +15,10 @@ export const PATH_WIDTH = 2.4;
 /** Smoothed points along each path, shared by the path ribbons and the grass mask. */
 export const pathCurves = PATHS.map(
   (points) => new CatmullRomCurve3(points.map(([x, z]) => new Vector3(x, 0, z)), false, 'catmullrom', 0.5)
+);
+
+export const streamCurves = STREAMS.map(
+  ({ points }) => new CatmullRomCurve3(points.map(([x, z]) => new Vector3(x, 0, z)), false, 'catmullrom', 0.5)
 );
 
 export function pathPoints(curve: CatmullRomCurve3) {
@@ -52,6 +60,7 @@ export function createGrassMask() {
   ctx.fill();
 
   for (const [x, z, hw, hd] of PADS) ctx.fillRect(X(x - hw), Z(z - hd), M(hw * 2), M(hd * 2));
+  ctx.fillRect(X(ZEN_GARDEN.x - ZEN_GARDEN.w / 2 - 0.6), Z(ZEN_GARDEN.z - ZEN_GARDEN.d / 2 - 0.6), M(ZEN_GARDEN.w + 1.2), M(ZEN_GARDEN.d + 1.2));
 
   // Camera tripod and the letters' footprint.
   ctx.beginPath();
@@ -67,6 +76,12 @@ export function createGrassMask() {
     pathPoints(curve).forEach((p, i) => (i ? ctx.lineTo(X(p.x), Z(p.z)) : ctx.moveTo(X(p.x), Z(p.z))));
     ctx.stroke();
   }
+  streamCurves.forEach((curve, i) => {
+    ctx.lineWidth = M(STREAMS[i].width + 1.3);
+    ctx.beginPath();
+    pathPoints(curve).forEach((p, j) => (j ? ctx.lineTo(X(p.x), Z(p.z)) : ctx.moveTo(X(p.x), Z(p.z))));
+    ctx.stroke();
+  });
 
   const texture = new CanvasTexture(canvas);
   texture.flipY = false;
@@ -83,6 +98,18 @@ function distanceToSegment(px: number, pz: number, a: Vector3, b: Vector3) {
 }
 
 const pathPolylines = pathCurves.map((c) => pathPoints(c));
+const streamPolylines = streamCurves.map((c) => pathPoints(c));
+
+/** Distance from the nearest stream's centre line, minus its half width (negative = in the water). */
+export function streamDistance(x: number, z: number) {
+  let best = Infinity;
+  streamPolylines.forEach((line, s) => {
+    for (let i = 1; i < line.length; i++) {
+      best = Math.min(best, distanceToSegment(x, z, line[i - 1], line[i]) - STREAMS[s].width / 2);
+    }
+  });
+  return best;
+}
 
 /** True where it's fine to place trees, rocks and flowers. */
 export function isOpenGround(x: number, z: number, margin = 0) {
@@ -91,6 +118,8 @@ export function isOpenGround(x: number, z: number, margin = 0) {
   if (x > COURT.minX - 2 - margin && x < COURT.maxX + 2 + margin && z > COURT.minZ - 2 - margin && z < COURT.maxZ + 2 + margin)
     return false;
   if (pondDistance(x, z) < 1.45 + margin * 0.1) return false;
+  if (streamDistance(x, z) < 1 + margin) return false;
+  if (Math.abs(x - ZEN_GARDEN.x) < ZEN_GARDEN.w / 2 + 1 + margin && Math.abs(z - ZEN_GARDEN.z) < ZEN_GARDEN.d / 2 + 1 + margin) return false;
   if (CLEARINGS.some((c) => Math.hypot(x - c.x, z - c.z) < c.r + margin)) return false;
   for (const line of pathPolylines) {
     for (let i = 1; i < line.length; i++) {

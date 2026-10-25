@@ -2,18 +2,18 @@ import { Color, Vector3 } from 'three';
 
 /** Golden-hour palette shared by the sky, fog, lights and materials. */
 export const GOLDEN = {
-  zenith: new Color('#5d6aa8'),
-  sky: new Color('#e79a7c'),
-  horizon: new Color('#ffcf94'),
+  zenith: new Color('#7486c9'),
+  sky: new Color('#f3ac92'),
+  horizon: new Color('#ffdcaa'),
   sun: new Color('#fff1cf'),
   sunGlow: new Color('#ffad66'),
-  fog: '#f1bf8d',
+  fog: '#f5cba0',
   sunLight: '#ffb26e',
-  hemiSky: '#aab8ee',
-  hemiGround: '#7d6040',
-  grassBase: new Color('#4f7f2c'),
-  grassTip: new Color('#f0cd6e'),
-  ground: '#679437',
+  hemiSky: '#b8c6f0',
+  hemiGround: '#86704c',
+  grassBase: new Color('#5a9236'),
+  grassTip: new Color('#ecd979'),
+  ground: '#72a443',
   dirt: '#b98b5b'
 };
 

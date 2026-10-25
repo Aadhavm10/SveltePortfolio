@@ -114,6 +114,11 @@ export function CameraRig() {
       rig.position.z
     );
     camera.lookAt(rig.look);
+    const fwdX = rig.look.x - rig.position.x;
+    const fwdZ = rig.look.z - rig.position.z;
+    const len = Math.hypot(fwdX, fwdZ) || 1;
+    fx.camRight.x = -fwdZ / len;
+    fx.camRight.z = fwdX / len;
   });
 
   return null;

@@ -58,23 +58,23 @@ export interface Look {
   boots: string;
   soles: string;
   gloves?: string;
+  /** Jersey printing; leave both out for a plain tee. */
   name?: string;
-  number: string;
+  number?: string;
 }
 
+/** Plain white tee, dark shorts and white sneakers. */
 export const AADHAV: Look = {
   skin: '#8d5a3b',
   hair: '#17110e',
   hairStyle: 'wavy',
   beard: true,
-  kit: '#f6f6f2',
-  trim: '#161616',
-  shorts: '#1a1a1f',
-  socks: '#f1f1ec',
-  boots: '#141414',
-  soles: '#ffcf3e',
-  name: 'AADHAV',
-  number: '7'
+  kit: '#fbfaf6',
+  trim: '#e6e3dc',
+  shorts: '#2b2e38',
+  socks: '#f4f2ec',
+  boots: '#f2efe8',
+  soles: '#e9775a'
 };
 
 export const KEEPER: Look = {
@@ -119,44 +119,44 @@ type JointRef = RefObject<Group | null>;
 const { damp, lerp } = MathUtils;
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
+/** Numbered kit printing that wraps the torso: u = 0 is the chest, u = 0.5 the back. */
+function kitTexture(look: Look, number: string) {
+  return canvasTexture(1024, 512, (ctx, w, h) => {
+    ctx.fillStyle = look.kit;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = look.trim;
+    for (const x of [w * 0.25, w * 0.75]) ctx.fillRect(x - 6, 0, 12, h);
+    ctx.fillRect(0, h - 14, w, 14);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    if (look.name) {
+      ctx.font = `800 44px ${FONT}`;
+      ctx.fillText(look.name, w / 2, 150);
+    }
+    ctx.font = `900 230px ${FONT}`;
+    ctx.fillText(number, w / 2, look.name ? 370 : 330);
+    ctx.font = `900 60px ${FONT}`;
+    ctx.fillText(number, w * 0.07, 190);
+  });
+}
+
 function makeMaterials(look: Look) {
   const mat = (color: string, roughness: number, flatShading = false) => new MeshStandardMaterial({ color, roughness, flatShading });
-  // The jersey texture wraps around the torso: u = 0 is the chest, u = 0.5 the back.
-  const jersey = new MeshStandardMaterial({
-    roughness: 0.6,
-    map: canvasTexture(1024, 512, (ctx, w, h) => {
-      ctx.fillStyle = look.kit;
-      ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = look.trim;
-      for (const x of [w * 0.25, w * 0.75]) ctx.fillRect(x - 6, 0, 12, h);
-      ctx.fillRect(0, h - 14, w, 14);
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      if (look.name) {
-        ctx.font = `800 44px ${FONT}`;
-        ctx.fillText(look.name, w / 2, 150);
-      }
-      ctx.font = `900 230px ${FONT}`;
-      ctx.fillText(look.number, w / 2, look.name ? 370 : 330);
-      ctx.font = `900 60px ${FONT}`;
-      ctx.fillText(look.number, w * 0.07, 190);
-    })
-  });
   return {
-    jersey,
+    jersey: look.number ? new MeshStandardMaterial({ roughness: 0.6, map: kitTexture(look, look.number) }) : mat(look.kit, 0.75),
     skin: mat(look.skin, 0.62),
     hair: mat(look.hair, 0.9, true),
-    kit: mat(look.kit, 0.6),
-    trim: mat(look.trim, 0.6),
+    kit: mat(look.kit, 0.7),
+    trim: mat(look.trim, 0.7),
     shorts: mat(look.shorts, 0.75),
     socks: mat(look.socks, 0.8),
-    boots: mat(look.boots, 0.35),
+    boots: mat(look.boots, 0.45),
     soles: mat(look.soles, 0.5),
     hands: mat(look.gloves ?? look.skin, 0.62),
-    sclera: mat('#f7f3ee', 0.4),
-    iris: mat('#1b120e', 0.25),
-    mouth: mat('#4a1f18', 0.6),
-    teeth: mat('#fbfbf8', 0.4)
+    eye: mat('#1a120e', 0.2),
+    sparkle: new MeshStandardMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 0.6 }),
+    blush: new MeshStandardMaterial({ color: '#d27466', roughness: 0.8, transparent: true, opacity: 0.55, depthWrite: false }),
+    mouth: mat('#4a2018', 0.6)
   };
 }
 
@@ -402,13 +402,16 @@ export function Character({ pose, look = AADHAV }: { pose: CharacterPose; look?:
         <group ref={torso}>
           <mesh geometry={geometries.torso} material={m.jersey} scale={[1, 1, 0.62]} castShadow />
           <mesh material={m.trim} position={[0, 0.61, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[0.072, 0.018, 6, 18]} />
+            <torusGeometry args={[0.07, 0.014, 6, 18]} />
           </mesh>
           <mesh material={m.skin} position={[0, 0.65, 0]} castShadow>
             <cylinderGeometry args={[0.055, 0.06, 0.1, 10]} />
           </mesh>
-          <group ref={head} position={[0, 0.66, 0]}>
-            <Head m={m} look={look} curl={geometries.curl} />
+          <group ref={head} position={[0, 0.65, 0]}>
+            {/* A slightly oversized head keeps the look friendly. */}
+            <group scale={1.16}>
+              <Head m={m} look={look} curl={geometries.curl} />
+            </group>
           </group>
           <Arm side={-1} shoulder={shoulderL} elbow={elbowL} m={m} />
           <Arm side={1} shoulder={shoulderR} elbow={elbowR} m={m} />
@@ -445,30 +448,30 @@ function Head({ m, look, curl }: { m: Materials; look: Look; curl: IcosahedronGe
         </>
       )}
 
-      {/* Eyes and brows */}
+      {/* Eyes with a sparkle, brows and rosy cheeks */}
       {[-1, 1].map((side) => (
         <group key={side}>
-          <mesh material={m.sclera} position={[side * 0.055, 0.17, 0.141]} scale={[1, 0.78, 0.5]}>
-            <sphereGeometry args={[0.026, 12, 10]} />
+          <mesh material={m.eye} position={[side * 0.056, 0.168, 0.146]} scale={[0.8, 1.15, 0.5]}>
+            <sphereGeometry args={[0.024, 14, 12]} />
           </mesh>
-          <mesh material={m.iris} position={[side * 0.053, 0.168, 0.152]}>
-            <sphereGeometry args={[0.0145, 10, 8]} />
+          <mesh material={m.sparkle} position={[side * 0.056 + 0.007, 0.178, 0.158]}>
+            <sphereGeometry args={[0.0065, 8, 6]} />
           </mesh>
-          <mesh material={m.hair} position={[side * 0.057, 0.213, 0.147]} rotation={[0, 0, side * -0.12]}>
-            <boxGeometry args={[0.058, 0.014, 0.014]} />
+          <mesh material={m.hair} position={[side * 0.057, 0.214, 0.147]} rotation={[0, 0, side * -0.12]}>
+            <boxGeometry args={[0.054, 0.012, 0.012]} />
+          </mesh>
+          <mesh material={m.blush} position={[side * 0.093, 0.118, 0.13]} rotation={[0, side * 0.7, 0]} scale={[1, 0.6, 1]}>
+            <circleGeometry args={[0.022, 16]} />
           </mesh>
         </group>
       ))}
-      <mesh material={m.skin} position={[0, 0.13, 0.162]} scale={[0.75, 0.9, 0.8]}>
-        <sphereGeometry args={[0.022, 10, 8]} />
+      <mesh material={m.skin} position={[0, 0.132, 0.161]} scale={[0.8, 0.85, 0.8]}>
+        <sphereGeometry args={[0.018, 10, 8]} />
       </mesh>
 
-      {/* Grin */}
-      <mesh material={m.mouth} position={[0, 0.098, 0.151]} rotation={[0.3, 0, 0]} scale={[1.25, 0.72, 1]}>
-        <circleGeometry args={[0.045, 20, Math.PI, Math.PI]} />
-      </mesh>
-      <mesh material={m.teeth} position={[0, 0.097, 0.153]} rotation={[0.3, 0, 0]} scale={[1.25, 0.6, 1]}>
-        <circleGeometry args={[0.039, 20, Math.PI, Math.PI]} />
+      {/* A simple curved smile, tilted to follow the face so no part of it sinks into the skin */}
+      <mesh material={m.mouth} position={[0, 0.096, 0.156]} rotation={[0.33, 0, Math.PI]}>
+        <torusGeometry args={[0.026, 0.0055, 6, 20, Math.PI]} />
       </mesh>
 
       {look.beard && (
@@ -478,12 +481,12 @@ function Head({ m, look, curl }: { m: Materials; look: Look; curl: IcosahedronGe
               <boxGeometry args={[0.046, 0.011, 0.012]} />
             </mesh>
           ))}
-          <mesh material={m.hair} position={[0, 0.03, 0.118]} rotation={[0.45, 0, 0]} scale={[0.027, 0.024, 0.013]}>
-            <sphereGeometry args={[1, 12, 10]} />
-          </mesh>
-          <mesh material={m.hair} position={[0, 0.052, 0.137]} scale={[0.008, 0.011, 0.006]}>
-            <sphereGeometry args={[1, 8, 6]} />
-          </mesh>
+          {/* Pointed goatee lying on the chin */}
+          <group position={[0, 0.036, 0.121]} rotation={[0.75, 0, 0]}>
+            <mesh material={m.hair} rotation={[Math.PI, 0, 0]} scale={[1, 1, 0.35]}>
+              <coneGeometry args={[0.026, 0.042, 3]} />
+            </mesh>
+          </group>
         </>
       )}
     </group>

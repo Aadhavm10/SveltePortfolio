@@ -33,6 +33,8 @@ export interface WorldState {
   quality: 'high' | 'low';
   /** The player has moved at least once (hides the controls hint). */
   moved: boolean;
+  /** The park map is open (it pauses movement). */
+  mapOpen: boolean;
   mode: Mode;
   /** Station whose interaction point the player is standing in. */
   near: StationId | null;
@@ -54,6 +56,7 @@ let state: WorldState = {
   touch: false,
   quality: 'high',
   moved: false,
+  mapOpen: false,
   mode: 'play',
   near: null,
   station: null,
@@ -107,5 +110,9 @@ export const fx = {
   /** performance.now() of the last kick that connected with the ball. */
   lastKick: 0,
   /** Player facing (unit vector on the ground), for systems that place things in front of them. */
-  facing: { x: 0, z: -1 }
+  facing: { x: 0, z: -1 },
+  /** The camera's right-hand direction on the ground, so left/right input can follow the view. */
+  camRight: { x: 1, z: 0 },
+  /** Where a charging soccer shot will land on the goal mouth (shown as a target ring). */
+  aim: { x: 0, y: 0, visible: false }
 };

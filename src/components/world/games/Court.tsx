@@ -283,10 +283,12 @@ function Basketballs() {
       const cos = Math.cos(LAUNCH_ANGLE);
       const speed = Math.sqrt((GRAVITY * d * d) / (2 * cos * cos * Math.max(0.2, d * Math.tan(LAUNCH_ANGLE) - dy)));
       // Off the sweet spot: long or short, and a little wide.
-      const [lo, hi] = basketball.sweetSpot;
+      const [lo, hi] = basketball.zone(from);
       const error = charge < lo ? charge - lo : charge > hi ? charge - hi : 0;
-      const v = speed * (1 + error * 0.55);
-      const wide = (Math.random() - 0.5) * Math.abs(error) * 0.6;
+      // Misses are bigger from further out, and long shots wobble a little even when timed well.
+      const range = 1 + Math.max(0, dist - 4) / 5;
+      const v = speed * (1 + error * 0.55 * range);
+      const wide = (Math.random() - 0.5) * (Math.abs(error) * 0.6 * range + Math.max(0, dist - 5) * 0.004);
       const yaw = Math.atan2(ux, uz) + wide;
       b.setTranslation(start, true);
       b.setLinvel({ x: Math.sin(yaw) * v * cos, y: v * Math.sin(LAUNCH_ANGLE), z: Math.cos(yaw) * v * cos }, true);

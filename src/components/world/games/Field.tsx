@@ -330,11 +330,37 @@ function ShootingChallenge() {
   return null;
 }
 
+/** A target ring on the goal mouth showing where a charging shot will go. */
+function AimTarget() {
+  const group = useRef<Group>(null);
+  useFrame((state) => {
+    const g = group.current;
+    if (!g) return;
+    g.visible = fx.aim.visible;
+    if (!fx.aim.visible) return;
+    g.position.set(fx.aim.x, fx.aim.y, GOAL.z + 0.08);
+    g.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 10) * 0.06);
+  });
+  return (
+    <group ref={group} visible={false}>
+      <mesh>
+        <torusGeometry args={[0.32, 0.035, 8, 32]} />
+        <meshBasicMaterial color="#ffd166" toneMapped={false} />
+      </mesh>
+      <mesh>
+        <circleGeometry args={[0.07, 16]} />
+        <meshBasicMaterial color="#ffffff" toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
 export function Field() {
   return (
     <>
       <PitchSurface />
       <Goal />
+      <AimTarget />
       <Keeper />
       <Scoreboard />
       <ShootingChallenge />
