@@ -127,8 +127,12 @@ function InstancedSet({ geometry, material, items, castShadow = true }: { geomet
   return <instancedMesh ref={ref} args={[geometry, material, items.length]} castShadow={castShadow} receiveShadow />;
 }
 
-export function Trees() {
-  const { round, pine, colliders } = useMemo(() => {
+let layout: { round: Item[]; pine: Item[]; colliders: { x: number; z: number; r: number }[] } | null = null;
+
+/** Where every tree stands (deterministic, so the map can draw the same trees). */
+export function treeLayout() {
+  if (layout) return layout;
+  {
     const rand = seeded(7);
     const round: Item[] = [];
     const pine: Item[] = [];
@@ -175,8 +179,13 @@ export function Trees() {
       add(x, z, 0.75 + rand() * 0.55, rand() > 0.85 ? 'pine' : 'round');
       groves++;
     }
-    return { round, pine, colliders };
-  }, []);
+    layout = { round, pine, colliders };
+  }
+  return layout;
+}
+
+export function Trees() {
+  const { round, pine, colliders } = useMemo(treeLayout, []);
 
   const geometries = useMemo(
     () => ({

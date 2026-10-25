@@ -249,3 +249,9 @@ export function playStep(surface: Surface, speed: number) {
     noiseBurst(t, 'bandpass', 2400 + Math.random() * 900, 0.9, 0.01 + s * 0.018, 0.004, 0.05);
   }
 }
+
+/** Chiptune blip for the arcade. */
+export function playBlip(freq: number) {
+  if (!ctx || muted) return;
+  tone(ctx.currentTime, freq, 0.045, 0.07, 'square');
+}

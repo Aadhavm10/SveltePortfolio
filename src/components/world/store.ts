@@ -32,8 +32,10 @@ export interface WorldState {
   /** Background music on/off (ambience and effects follow `muted` only). */
   music: boolean;
   touch: boolean;
-  /** 'low' on phones and software renderers: less grass, smaller shadows. */
+  /** 'low' on phones, small devices, software renderers, or when the frame rate drops: less grass, smaller shadows. */
   quality: 'high' | 'low';
+  /** Very little memory or data saver on: the start screen suggests the classic site. */
+  lowEnd: boolean;
   /** The player has moved at least once (hides the controls hint). */
   moved: boolean;
   /** The park map is open (it pauses movement). */
@@ -47,6 +49,13 @@ export interface WorldState {
   page: number;
   /** PSP menu cursor: column (category) and row (item). */
   psp: { col: number; row: number };
+  /** Globe: the selected place, and the photo shown full screen (-1 when the gallery is closed). */
+  place: number;
+  gallery: number;
+  /** Photo booth: the last polaroid (an object URL) while it's being shown. */
+  polaroid: string | null;
+  /** performance.now() of the last walk into or out of the room, for the fade. */
+  roomFadeAt: number;
   challenge: Challenge | null;
   /** Free-play goal celebration. */
   goalAt: number;
@@ -59,6 +68,7 @@ let state: WorldState = {
   music: true,
   touch: false,
   quality: 'high',
+  lowEnd: false,
   moved: false,
   mapOpen: false,
   mode: 'play',
@@ -66,6 +76,10 @@ let state: WorldState = {
   station: null,
   page: 0,
   psp: { col: 0, row: 0 },
+  place: 0,
+  gallery: -1,
+  polaroid: null,
+  roomFadeAt: 0,
   challenge: null,
   goalAt: 0
 };
@@ -118,5 +132,7 @@ export const fx = {
   /** The camera's right-hand direction on the ground, so left/right input can follow the view. */
   camRight: { x: 1, z: 0 },
   /** Where a charging soccer shot will land on the goal mouth (shown as a target ring). */
-  aim: { x: 0, y: 0, visible: false }
+  aim: { x: 0, y: 0, visible: false },
+  /** Set to ask the photo booth to take a picture on the next frame. */
+  snap: false
 };

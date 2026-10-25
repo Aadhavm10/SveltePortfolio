@@ -1,6 +1,7 @@
 import { useMemo, useRef, type RefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Group, IcosahedronGeometry, LatheGeometry, MathUtils, MeshStandardMaterial, Vector2 } from 'three';
+import { BufferGeometry, Group, IcosahedronGeometry, LatheGeometry, MathUtils, MeshStandardMaterial, Vector2 } from 'three';
+import { mergeParts, type Part } from './env/merge';
 import { canvasTexture, FONT } from './textures';
 
 /** Animation inputs, written by a controller every frame. */
@@ -176,7 +177,16 @@ function torsoGeometry() {
 
 export function Character({ pose, look = AADHAV }: { pose: CharacterPose; look?: Look }) {
   const m = useMemo(() => makeMaterials(look), [look]);
-  const geometries = useMemo(() => ({ torso: torsoGeometry(), curl: new IcosahedronGeometry(1, 1) }), []);
+  const geometries = useMemo(() => {
+    // All the curls (and the fringe) merged into one mesh: one draw call instead of nineteen.
+    const curl = new IcosahedronGeometry(1, 1);
+    const curls = mergeParts([
+      ...CURLS.map(([x, y, z, r], i): Part => ({ geometry: curl, position: [x, y, z], rotation: [i * 0.7, i * 1.3, 0], scale: [r, r * 0.85, r] })),
+      { geometry: curl, position: [-0.035, 0.262, 0.14], rotation: [0.3, 0.2, 0.45], scale: [0.1, 0.04, 0.05] },
+      { geometry: curl, position: [0.06, 0.272, 0.132], rotation: [0.2, -0.2, -0.3], scale: [0.07, 0.035, 0.045] }
+    ]);
+    return { torso: torsoGeometry(), curls };
+  }, []);
 
   const root = useRef<Group>(null);
   const torso = useRef<Group>(null);
@@ -410,7 +420,7 @@ export function Character({ pose, look = AADHAV }: { pose: CharacterPose; look?:
           <group ref={head} position={[0, 0.65, 0]}>
             {/* A slightly oversized head keeps the look friendly. */}
             <group scale={1.16}>
-              <Head m={m} look={look} curl={geometries.curl} />
+              <Head m={m} look={look} curls={geometries.curls} />
             </group>
           </group>
           <Arm side={-1} shoulder={shoulderL} elbow={elbowL} m={m} />
@@ -421,7 +431,7 @@ export function Character({ pose, look = AADHAV }: { pose: CharacterPose; look?:
   );
 }
 
-function Head({ m, look, curl }: { m: Materials; look: Look; curl: IcosahedronGeometry }) {
+function Head({ m, look, curls }: { m: Materials; look: Look; curls: BufferGeometry }) {
   return (
     <group>
       <mesh material={m.skin} position={[0, 0.155, 0]} scale={[0.93, 1.06, 1]} castShadow>
@@ -439,12 +449,8 @@ function Head({ m, look, curl }: { m: Materials; look: Look; curl: IcosahedronGe
       </mesh>
       {look.hairStyle === 'wavy' && (
         <>
-          {CURLS.map(([x, y, z, r], i) => (
-            <mesh key={i} geometry={curl} material={m.hair} position={[x, y, z]} rotation={[i * 0.7, i * 1.3, 0]} scale={[r, r * 0.85, r]} castShadow />
-          ))}
-          {/* Fringe swooping across the forehead */}
-          <mesh geometry={curl} material={m.hair} position={[-0.035, 0.262, 0.14]} rotation={[0.3, 0.2, 0.45]} scale={[0.1, 0.04, 0.05]} />
-          <mesh geometry={curl} material={m.hair} position={[0.06, 0.272, 0.132]} rotation={[0.2, -0.2, -0.3]} scale={[0.07, 0.035, 0.045]} />
+          {/* Curls, with a fringe swooping across the forehead */}
+          <mesh geometry={curls} material={m.hair} castShadow />
         </>
       )}
 

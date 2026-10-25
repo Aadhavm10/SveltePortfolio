@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { Ambience } from './ambience';
 import { Ball } from './Ball';
+import { StaticBatch } from './env/batch';
+import { Details } from './env/Details';
 import { Dust } from './env/Dust';
 import { Scatter, Trees } from './env/Foliage';
 import { Grass } from './env/Grass';
@@ -17,9 +19,11 @@ import { Player } from './Player';
 import { Landmarks } from './stations/Landmarks';
 import { Markers } from './stations/Markers';
 import { Stations } from './stations/Stations';
-import { world } from './store';
+import { useWorld, world } from './store';
 
 export function Scene() {
+  // The grass and shadows rebuild lighter if quality drops.
+  const quality = useWorld((s) => s.quality);
   useEffect(() => {
     world.set({ ready: true });
   }, []);
@@ -27,13 +31,18 @@ export function Scene() {
   return (
     <>
       <Sky />
-      <Lights />
+      <Lights key={`lights-${quality}`} />
       <Ground />
-      <Grass />
+      <Grass key={`grass-${quality}`} />
       <Paths />
       <Pond />
       <Streams />
-      <ZenGarden />
+      <StaticBatch>
+        <ZenGarden />
+      </StaticBatch>
+      <StaticBatch>
+        <Details />
+      </StaticBatch>
       <Trees />
       <Scatter />
       <Dust />

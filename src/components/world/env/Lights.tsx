@@ -6,6 +6,8 @@ import { bodies, world } from '../store';
 import { GOLDEN, SUN_DIR } from './palette';
 
 const SHADOW_EXTENT = 28;
+/** A tighter shadow area on the light setting: fewer things to draw twice. */
+const SHADOW_EXTENT_LOW = 20;
 
 /** Low warm sun (its shadow camera follows the player), a sky fill and a soft front fill. */
 export function Lights() {
@@ -25,7 +27,9 @@ export function Lights() {
       pmrem.dispose();
     };
   }, [gl, scene]);
-  const mapSize = world.get().quality === 'low' ? 1024 : 2048;
+  const low = world.get().quality === 'low';
+  const mapSize = low ? 1024 : 2048;
+  const extent = low ? SHADOW_EXTENT_LOW : SHADOW_EXTENT;
 
   useFrame(({ camera }) => {
     const light = sun.current;
@@ -49,10 +53,10 @@ export function Lights() {
         color={GOLDEN.sunLight}
         intensity={4.4}
         shadow-mapSize={[mapSize, mapSize]}
-        shadow-camera-left={-SHADOW_EXTENT}
-        shadow-camera-right={SHADOW_EXTENT}
-        shadow-camera-top={SHADOW_EXTENT}
-        shadow-camera-bottom={-SHADOW_EXTENT}
+        shadow-camera-left={-extent}
+        shadow-camera-right={extent}
+        shadow-camera-top={extent}
+        shadow-camera-bottom={-extent}
         shadow-camera-near={1}
         shadow-camera-far={100}
         shadow-bias={-0.0003}

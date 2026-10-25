@@ -1,15 +1,17 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
-import { contactLinks, experience, photos, projects, resumeUrl } from '../../data/portfolio';
-import { arrow, back, CLASSIC_URL, closeStation, interact, openStation, selectPsp, turnPage } from './actions';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
+import { Map as MapIcon } from 'lucide-react';
+import { contactLinks, resumeUrl } from '../../data/portfolio';
+import { arrow, back, CLASSIC_URL, interact, openCurrent, openStation } from './actions';
 import { basketball } from './games/basketballState';
 import { CHALLENGE_SECONDS, quitChallenge, startChallenge, tickChallenge } from './games/challenge';
 import { clearInput, input } from './input';
-import { stationById, type StationId } from './layout';
+import { Icon } from './icons';
+import { stationById } from './layout';
 import { MapOverlay, toggleMap } from './MapOverlay';
 import { startAmbience } from './ambience';
 import { startMusic } from './music';
 import { initAudio, setMusicOn, setMuted } from './sound';
-import { PSP_MENU } from './stations/pspMenu';
+import { StationHud } from './StationHud';
 import { bodies, fx, MUSIC_KEY, MUTE_KEY, useWorld, world } from './store';
 
 function start() {
@@ -41,14 +43,6 @@ function toggleMute() {
   }
 }
 
-/** O: open the link for whatever is on screen. */
-function openCurrent() {
-  const { mode, station, page } = world.get();
-  if (mode !== 'station') return;
-  if (station === 'projects') window.open(projects[page].projectUrl, '_blank', 'noopener');
-  if (station === 'psp') selectPsp();
-}
-
 const isControl = (target: EventTarget | null) => target instanceof HTMLElement && target.closest('a, button') !== null;
 
 const ARROWS: Record<string, [number, number]> = {
@@ -68,6 +62,7 @@ export function Hud() {
   const mode = useWorld((s) => s.mode);
   const near = useWorld((s) => s.near);
   const touch = useWorld((s) => s.touch);
+  const station = useWorld((s) => s.station);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -77,7 +72,7 @@ export function Hud() {
         if (e.code === 'Enter' && s.ready && !isControl(e.target)) start();
         return;
       }
-      if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+      if (e.code === 'Enter' || e.code === 'NumpadEnter' || (e.code === 'Space' && s.station === 'photo')) {
         if (isControl(e.target)) return;
         e.preventDefault();
         interact();
@@ -116,14 +111,15 @@ export function Hud() {
           {mode === 'play' && !touch && <ControlsHint />}
           {mode === 'play' && near && touch && (
             <button type="button" className="world-prompt" style={{ '--accent': stationById[near].color } as CSSProperties} onClick={() => openStation(near)}>
+              <Icon name={stationById[near].icon} size={20} />
               {stationById[near].label}
             </button>
           )}
           {mode === 'play' && <GoalBanner />}
-          {mode === 'station' && <StationBar />}
+          {mode === 'station' && <StationHud />}
           {(mode === 'soccer' || mode === 'basketball') && <ChallengeHud kind={mode} />}
           {(mode === 'play' || mode === 'soccer' || mode === 'basketball') && <ChargeMeter kind={mode} />}
-          {touch && (mode === 'play' || mode === 'soccer' || mode === 'basketball') && <TouchControls />}
+          {touch && (mode === 'play' || mode === 'soccer' || mode === 'basketball' || station === 'photo') && <TouchControls kick={station !== 'photo'} />}
           <MapOverlay />
         </>
       )}
@@ -133,6 +129,7 @@ export function Hud() {
 
 function StartScreen({ ready, started }: { ready: boolean; started: boolean }) {
   const [gone, setGone] = useState(false);
+  const lowEnd = useWorld((s) => s.lowEnd);
   if (gone) return null;
   return (
     <div className={`world-start${started ? ' is-leaving' : ''}`} onTransitionEnd={() => started && setGone(true)}>
@@ -141,21 +138,26 @@ function StartScreen({ ready, started }: { ready: boolean; started: boolean }) {
         <p className="world-start-title">Aadhav Manimurugan</p>
         <p className="world-start-sub">Software engineer · CS @ UT Dallas</p>
         <p className="world-start-copy">
-          Explore my park: browse my work on the laptop, flip through photos on the camera, and take a shot at the
-          shooting challenge or the 3-point shootout.
+          Explore my park: wander the project fair, spin the globe to see where I have been, play a game on the
+          laptop, step inside my room, and take a shot at the shooting challenge or the 3-point shootout.
         </p>
+        {lowEnd && (
+          <p className="world-start-note">
+            Heads up: this is a 3D world and it may feel heavy on this device. The classic site is lighter.
+          </p>
+        )}
         <button type="button" className="world-btn world-btn-primary world-btn-large" disabled={!ready} onClick={start}>
           {ready ? 'Kick off' : 'Setting up the park…'}
         </button>
         <a className="world-start-classic" href={CLASSIC_URL}>
-          Prefer a regular website? Visit the classic site →
+          Prefer a regular website? Visit the classic site
         </a>
       </div>
     </div>
   );
 }
 
-function Icon({ name }: { name: 'github' | 'linkedin' | 'email' | 'resume' }) {
+function ContactIcon({ name }: { name: 'github' | 'linkedin' | 'email' | 'resume' }) {
   const common = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
   if (name === 'email')
     return (
@@ -198,12 +200,12 @@ function ContactDock() {
           rel="noopener noreferrer"
           title={link.handle}
         >
-          <Icon name={link.id} />
+          <ContactIcon name={link.id} />
           <span>{link.label}</span>
         </a>
       ))}
       <a className="world-dock-link" href={resumeUrl} target="_blank" rel="noopener noreferrer">
-        <Icon name="resume" />
+        <ContactIcon name="resume" />
         <span>Résumé</span>
       </a>
     </nav>
@@ -226,9 +228,8 @@ function TopBar() {
           }}
           aria-label="Open the park map"
         >
-          <span aria-hidden="true">🗺️</span>
+          <MapIcon size={18} aria-hidden="true" />
           <span className="world-pill-label" aria-hidden="true">
-            {' '}
             Map
           </span>
         </button>
@@ -311,99 +312,6 @@ function GoalBanner() {
   );
 }
 
-const STATION_TITLES: Partial<Record<StationId, string>> = {
-  projects: 'Work',
-  experience: 'Experience',
-  psp: 'Favorites',
-  camera: 'Photos'
-};
-
-function StationBar() {
-  const station = useWorld((s) => s.station);
-  const page = useWorld((s) => s.page);
-  const psp = useWorld((s) => s.psp);
-  if (!station) return null;
-  const count = station === 'projects' ? projects.length : station === 'experience' ? experience.length : station === 'camera' ? photos.length : 0;
-  const pspItem = station === 'psp' ? PSP_MENU[psp.col].items[psp.row] : null;
-
-  let action: ReactNode = null;
-  if (station === 'projects') {
-    action = (
-      <a className="world-btn world-btn-primary" href={projects[page].projectUrl} target="_blank" rel="noopener noreferrer">
-        Open site ↗ <kbd>O</kbd>
-      </a>
-    );
-  } else if (pspItem?.href) {
-    action = (
-      <a className="world-btn world-btn-primary" href={pspItem.href} target="_blank" rel="noopener noreferrer">
-        Open {pspItem.title} ↗
-      </a>
-    );
-  }
-
-  return (
-    <>
-      {station === 'camera' && <Viewfinder page={page} />}
-      <div className="world-station-bar" style={{ '--accent': stationById[station].color } as CSSProperties}>
-        <span className="world-station-title">
-          {STATION_TITLES[station]}
-          {count > 0 && <small>{`${page + 1} / ${count}`}</small>}
-        </span>
-        <div className="world-station-actions">
-          {count > 0 && (
-            <>
-              <button type="button" className="world-btn" onClick={() => turnPage(-1)} aria-label="Previous">
-                ←
-              </button>
-              <button type="button" className="world-btn" onClick={() => turnPage(1)}>
-                Next <kbd>Enter</kbd>
-              </button>
-            </>
-          )}
-          {station === 'psp' && (
-            <>
-              <button type="button" className="world-btn" onClick={() => arrow(-1, 0)} aria-label="Previous category">
-                ←
-              </button>
-              <button type="button" className="world-btn" onClick={() => arrow(0, 1)} aria-label="Next item">
-                ↓
-              </button>
-              <button type="button" className="world-btn" onClick={() => arrow(1, 0)} aria-label="Next category">
-                →
-              </button>
-            </>
-          )}
-          {action}
-          <button type="button" className="world-btn" onClick={closeStation}>
-            Back <kbd>Esc</kbd>
-          </button>
-        </div>
-      </div>
-    </>
-  );
-}
-
-/** Looking through the camera: the photo fills a viewfinder frame, with a flash on every shot. */
-function Viewfinder({ page }: { page: number }) {
-  return (
-    <div className="world-viewfinder" onClick={() => turnPage(1)}>
-      <div className="world-viewfinder-frame">
-        <img key={page} src={photos[page]} alt={`Photo ${page + 1} of ${photos.length}`} />
-        <span className="world-viewfinder-flash" key={`flash-${page}`} />
-        <span className="world-viewfinder-corner tl" />
-        <span className="world-viewfinder-corner tr" />
-        <span className="world-viewfinder-corner bl" />
-        <span className="world-viewfinder-corner br" />
-        <span className="world-viewfinder-meta left">
-          <i /> REC
-        </span>
-        <span className="world-viewfinder-meta right">{`${String(page + 1).padStart(2, '0')} / ${photos.length}`}</span>
-        <span className="world-viewfinder-meta bottom">f/2.8 · 1/250 · ISO 100</span>
-      </div>
-    </div>
-  );
-}
-
 function ChallengeHud({ kind }: { kind: 'soccer' | 'basketball' }) {
   const challenge = useWorld((s) => s.challenge);
   const [, force] = useState(0);
@@ -441,7 +349,7 @@ function ChallengeHud({ kind }: { kind: 'soccer' | 'basketball' }) {
       )}
       {challenge.phase === 'playing' && (
         <p className="world-challenge-help">
-          {kind === 'soccer' ? 'Hold Space to power up, steer with ← →, release to shoot. Aim for the corners!' : 'Hold Space and release in the green zone.'}
+          {kind === 'soccer' ? 'Hold Space to power up, steer left or right, release to shoot. Aim for the corners!' : 'Hold Space and release in the green zone.'}
         </p>
       )}
       {challenge.phase === 'done' && (
@@ -502,7 +410,7 @@ function ChargeMeter({ kind }: { kind: 'play' | 'soccer' | 'basketball' }) {
 
 const STICK_RADIUS = 52;
 
-function TouchControls() {
+function TouchControls({ kick }: { kick: boolean }) {
   const knob = useRef<HTMLDivElement>(null);
   const pointer = useRef<number | null>(null);
 
@@ -546,6 +454,7 @@ function TouchControls() {
       >
         <div ref={knob} className="world-stick-knob" />
       </div>
+      {kick && (
       <button
         type="button"
         className="world-kick"
@@ -563,6 +472,7 @@ function TouchControls() {
           <path d="m12 7.5 3.2 2.3-1.2 3.7h-4l-1.2-3.7z" fill="#111" />
         </svg>
       </button>
+      )}
     </>
   );
 }

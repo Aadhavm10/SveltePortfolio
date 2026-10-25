@@ -2,6 +2,7 @@ import { useMemo, useRef, type CSSProperties } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { Group, MathUtils, Mesh, MeshBasicMaterial } from 'three';
+import { Icon } from '../icons';
 import { STATIONS, type Station } from '../layout';
 import { bodies, useWorld, world } from '../store';
 import { canvasTexture } from '../textures';
@@ -64,7 +65,7 @@ function Marker({ station, ring }: { station: Station; ring: ReturnType<typeof r
       </group>
       <Html position={[0, station.promptY + 0.75, 0]} center zIndexRange={[20, 0]} pointerEvents="none">
         <div ref={sign} className={`world-sign${near ? ' is-near' : ''}`} style={{ '--accent': station.color } as CSSProperties}>
-          <span aria-hidden="true">{station.icon}</span>
+          <Icon name={station.icon} size={18} />
           {near ? station.label : station.name}
           {near && !touch && <kbd>Enter</kbd>}
         </div>

@@ -57,7 +57,7 @@ export function loadImage(src: string) {
 }
 
 /** Draws an image scaled to fill the rect, like CSS object-fit: cover. */
-export function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, w: number, h: number) {
+export function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement | HTMLCanvasElement, x: number, y: number, w: number, h: number) {
   const scale = Math.max(w / img.width, h / img.height);
   const sw = w / scale;
   const sh = h / scale;
@@ -65,7 +65,7 @@ export function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, 
 }
 
 /** Draws an image scaled to fit inside the rect, like CSS object-fit: contain. */
-export function drawContain(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, w: number, h: number) {
+export function drawContain(ctx: CanvasRenderingContext2D, img: HTMLImageElement | HTMLCanvasElement, x: number, y: number, w: number, h: number) {
   const scale = Math.min(w / img.width, h / img.height);
   const dw = img.width * scale;
   const dh = img.height * scale;

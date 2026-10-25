@@ -1,7 +1,8 @@
 import { useEffect, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { MathUtils, PerspectiveCamera, Vector3 } from 'three';
-import { COURT, GOAL, SPAWN, stationById } from './layout';
+import { COURT, GOAL, PROPS, SPAWN, stationById } from './layout';
+import { ROOM_ORIGIN, roomView } from './stations/Cottage';
 import { bodies, fx, world } from './store';
 
 /** Gameplay camera offset from the player: behind and above, looking north. */
@@ -23,7 +24,10 @@ export function CameraRig() {
       desiredLook: new Vector3(),
       zoom: 1,
       targetZoom: 1,
-      intro: 0
+      intro: 0,
+      /** Jump straight to the next view (walking into or out of the room). */
+      snap: false,
+      wasRoom: false
     }),
     []
   );
@@ -57,15 +61,43 @@ export function CameraRig() {
     let lambda = 4.5;
 
     const view = mode === 'station' && station ? stationById[station].view : undefined;
-    if (view) {
+    const inRoom = mode === 'station' && station === 'room';
+    if (inRoom !== rig.wasRoom) {
+      rig.wasRoom = inRoom;
+      rig.snap = true;
+    }
+
+    if (inRoom) {
+      // Inside the panorama: stand at its centre and look where the visitor drags.
+      const cp = Math.cos(roomView.pitch);
+      rig.desiredPos.copy(ROOM_ORIGIN);
+      rig.desiredLook.set(
+        ROOM_ORIGIN.x + Math.cos(roomView.yaw) * cp,
+        ROOM_ORIGIN.y + Math.sin(roomView.pitch),
+        ROOM_ORIGIN.z + Math.sin(roomView.yaw) * cp
+      );
+      lambda = 60;
+    } else if (mode === 'station' && station === 'photo' && p) {
+      // Photo booth: see through the tripod camera's lens; it pans to keep you in frame as you pose.
+      rig.desiredPos.set(PROPS.camera.x, 1.45, PROPS.camera.z + 0.55);
+      rig.desiredLook.set(p.x, 1.15, p.z);
+      lambda = 3.5;
+    } else if (view) {
       // Back off from the screen until all of it fits the viewport.
       const vfov = MathUtils.degToRad(camera.fov);
       const hfov = 2 * Math.atan(Math.tan(vfov / 2) * aspect);
-      const dist = Math.max(view.height / (2 * Math.tan(vfov / 2)), view.width / (2 * Math.tan(hfov / 2))) * 1.12;
+      // On a phone the globe's card covers the lower half, so frame just the globe in the top half.
+      const portraitGlobe = station === 'globe' && aspect <= 1.15;
+      const width = portraitGlobe ? 5.9 : view.width;
+      const dist = Math.max(view.height / (2 * Math.tan(vfov / 2)), width / (2 * Math.tan(hfov / 2))) * 1.12;
       const n = view.normal;
       const len = Math.hypot(n[0], n[1], n[2]);
-      rig.desiredLook.set(...view.target);
-      rig.desiredPos.set(view.target[0] + (n[0] / len) * dist, view.target[1] + (n[1] / len) * dist, view.target[2] + (n[2] / len) * dist);
+      // The globe shares the screen with its info card on wide screens, so it sits left of centre.
+      const shift = station === 'globe' && aspect > 1.15 ? view.width * 0.42 : 0;
+      const wide = station === 'globe' && aspect > 1.15 ? 1.25 : 1;
+      const drop = portraitGlobe ? dist * Math.tan(vfov / 2) * 0.42 : 0;
+      rig.desiredLook.set(view.target[0] + shift, view.target[1] - drop, view.target[2]);
+      rig.desiredPos.set(view.target[0] + shift + (n[0] / len) * dist * wide, view.target[1] + (n[1] / len) * dist * wide, view.target[2] + (n[2] / len) * dist * wide);
       lambda = 3.6;
     } else if ((mode === 'soccer' || mode === 'basketball') && p) {
       // Behind the ball (or the shooter), looking toward the goal or hoop.
@@ -97,6 +129,10 @@ export function CameraRig() {
       const introPos = new Vector3(SPAWN.x + Math.sin(sway) * 34, 26, SPAWN.z - 8 + Math.cos(sway) * 34);
       rig.position.copy(introPos.lerp(rig.desiredPos, e));
       rig.look.set(SPAWN.x, 0, SPAWN.z - 8).lerp(rig.desiredLook, e);
+    } else if (rig.snap) {
+      rig.snap = false;
+      rig.position.copy(rig.desiredPos);
+      rig.look.copy(rig.desiredLook);
     } else {
       rig.position.x = MathUtils.damp(rig.position.x, rig.desiredPos.x, lambda, dt);
       rig.position.y = MathUtils.damp(rig.position.y, rig.desiredPos.y, lambda, dt);
@@ -104,6 +140,13 @@ export function CameraRig() {
       rig.look.x = MathUtils.damp(rig.look.x, rig.desiredLook.x, lambda + 1, dt);
       rig.look.y = MathUtils.damp(rig.look.y, rig.desiredLook.y, lambda + 1, dt);
       rig.look.z = MathUtils.damp(rig.look.z, rig.desiredLook.z, lambda + 1, dt);
+    }
+
+    // A wider lens inside the room so it feels like standing in it.
+    const fov = inRoom ? 78 : 42;
+    if (camera.fov !== fov) {
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
     }
 
     const shake = fx.shake;

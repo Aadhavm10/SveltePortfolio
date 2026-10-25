@@ -3,6 +3,7 @@ import { CuboidCollider, RigidBody } from '@react-three/rapier';
 import { FontLoader, type FontData } from 'three/examples/jsm/loaders/FontLoader.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 import fontJson from 'three/examples/fonts/helvetiker_bold.typeface.json';
+import { StaticBatch } from '../env/batch';
 import { canvasTexture, DISPLAY_FONT, FONT } from '../textures';
 import { PALETTE, PROPS, stationById, type StationId } from '../layout';
 
@@ -59,7 +60,21 @@ function ClassicSign() {
         ctx.font = `900 112px ${FONT}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('CLASSIC SITE →', w / 2, h / 2 + 6);
+        ctx.fillText('CLASSIC SITE', w / 2 - 50, h / 2 + 6);
+        // A drawn arrow rather than a text glyph.
+        const ax = w / 2 + 330;
+        const ay = h / 2;
+        ctx.lineWidth = 16;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#3b2a1c';
+        ctx.beginPath();
+        ctx.moveTo(ax - 70, ay);
+        ctx.lineTo(ax + 40, ay);
+        ctx.moveTo(ax, ay - 38);
+        ctx.lineTo(ax + 40, ay);
+        ctx.lineTo(ax, ay + 38);
+        ctx.stroke();
       }),
     []
   );
@@ -86,10 +101,10 @@ function ClassicSign() {
 }
 
 const POINTERS: { id: StationId; text: string }[] = [
-  { id: 'projects', text: 'Work' },
-  { id: 'psp', text: 'PSP' },
-  { id: 'camera', text: 'Photos' },
-  { id: 'basketball', text: 'Hoops' }
+  { id: 'stall-0', text: 'Projects' },
+  { id: 'arcade', text: 'Arcade' },
+  { id: 'globe', text: 'Travels' },
+  { id: 'room', text: 'My room' }
 ];
 
 /** A wooden signpost by the spawn point, one arrow plank per place. */
@@ -156,8 +171,10 @@ export function Landmarks() {
   return (
     <>
       <NameLetters />
-      <ClassicSign />
-      <Signpost />
+      <StaticBatch>
+        <ClassicSign />
+        <Signpost />
+      </StaticBatch>
     </>
   );
 }

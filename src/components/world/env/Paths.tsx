@@ -1,6 +1,18 @@
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { CylinderCollider, RigidBody } from '@react-three/rapier';
-import { BufferAttribute, BufferGeometry, MeshLambertMaterial, RepeatWrapping, Vector3 } from 'three';
+import {
+  BufferAttribute,
+  BufferGeometry,
+  ConeGeometry,
+  CylinderGeometry,
+  InstancedMesh,
+  MeshBasicMaterial,
+  MeshLambertMaterial,
+  Object3D,
+  RepeatWrapping,
+  Vector3
+} from 'three';
+import { mergeParts } from './merge';
 import { canvasTexture } from '../textures';
 import { PATH_WIDTH, pathCurves, pathPoints } from './mask';
 import { seeded } from './palette';
@@ -90,9 +102,7 @@ export function Paths() {
       {geometries.map((g, i) => (
         <mesh key={i} geometry={g} material={material} receiveShadow />
       ))}
-      {lamps.map((l, i) => (
-        <Lamp key={i} x={l.x} z={l.z} />
-      ))}
+      <Lamps lamps={lamps} />
       <RigidBody type="fixed" colliders={false}>
         {lamps.map((l, i) => (
           <CylinderCollider key={i} args={[1.3, 0.1]} position={[l.x, 1.3, l.z]} />
@@ -102,26 +112,43 @@ export function Paths() {
   );
 }
 
-function Lamp({ x, z }: { x: number; z: number }) {
+/** Every lamp post as two instanced meshes: the dark iron and the glowing lantern. */
+function Lamps({ lamps }: { lamps: { x: number; z: number }[] }) {
+  const iron = useRef<InstancedMesh>(null);
+  const glow = useRef<InstancedMesh>(null);
+  const geometries = useMemo(
+    () => ({
+      iron: mergeParts([
+        { geometry: new CylinderGeometry(0.05, 0.08, 2.6, 8), position: [0, 1.3, 0] },
+        { geometry: new ConeGeometry(0.26, 0.2, 8), position: [0, 2.9, 0] },
+        { geometry: new CylinderGeometry(0.16, 0.2, 0.12, 8), position: [0, 0.06, 0] }
+      ]),
+      glow: new CylinderGeometry(0.16, 0.12, 0.3, 8).translate(0, 2.68, 0)
+    }),
+    []
+  );
+  const materials = useMemo(
+    () => ({ iron: new MeshLambertMaterial({ color: '#2f3a33' }), glow: new MeshBasicMaterial({ color: '#ffd89a', toneMapped: false }) }),
+    []
+  );
+  useLayoutEffect(() => {
+    const o = new Object3D();
+    lamps.forEach((l, i) => {
+      o.position.set(l.x, 0, l.z);
+      o.updateMatrix();
+      iron.current?.setMatrixAt(i, o.matrix);
+      glow.current?.setMatrixAt(i, o.matrix);
+    });
+    for (const mesh of [iron.current, glow.current]) {
+      if (!mesh) continue;
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.computeBoundingSphere();
+    }
+  }, [lamps]);
   return (
-    <group position={[x, 0, z]}>
-      <mesh position={[0, 1.3, 0]} castShadow>
-        <cylinderGeometry args={[0.05, 0.08, 2.6, 8]} />
-        <meshLambertMaterial color="#2f3a33" />
-      </mesh>
-      <mesh position={[0, 2.68, 0]}>
-        <cylinderGeometry args={[0.16, 0.12, 0.3, 8]} />
-        <meshBasicMaterial color="#ffd89a" toneMapped={false} />
-      </mesh>
-      <mesh position={[0, 2.9, 0]} castShadow>
-        <coneGeometry args={[0.26, 0.2, 8]} />
-        <meshLambertMaterial color="#2f3a33" />
-      </mesh>
-      <mesh position={[0, 0.06, 0]}>
-        <cylinderGeometry args={[0.16, 0.2, 0.12, 8]} />
-        <meshLambertMaterial color="#2f3a33" />
-      </mesh>
-    </group>
+    <>
+      <instancedMesh ref={iron} args={[geometries.iron, materials.iron, lamps.length]} castShadow />
+      <instancedMesh ref={glow} args={[geometries.glow, materials.glow, lamps.length]} />
+    </>
   );
 }
-

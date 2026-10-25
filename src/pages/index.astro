@@ -19,11 +19,36 @@ import { contactLinks } from '../data/portfolio';
     {contactLinks.map((link) => <a href={link.href}>{link.label}</a>)}
   </nav>
 
+  <!-- Shown the moment the HTML arrives; the world removes it once it has loaded. -->
+  <div id="world-shell" aria-hidden="true">
+    <div class="shell-card">
+      <p class="shell-eyebrow">Portfolio</p>
+      <p class="shell-title">Aadhav Manimurugan</p>
+      <p class="shell-sub">Software engineer · CS @ UT Dallas</p>
+      <div class="shell-bar"><span></span></div>
+      <p class="shell-tip">Watering the grass</p>
+      <a class="shell-classic" href="/classic">Prefer a regular website? Visit the classic site</a>
+    </div>
+  </div>
+  <script is:inline>
+    // Little rotating notes while the world downloads.
+    (function () {
+      var tips = ['Watering the grass', 'Pumping up the ball', 'Filling the pond', 'Setting up the stalls', 'Charging the PSP', 'Spinning the globe'];
+      var i = 0;
+      var timer = setInterval(function () {
+        var el = document.querySelector('#world-shell .shell-tip');
+        if (!el) return clearInterval(timer);
+        i = (i + 1) % tips.length;
+        el.textContent = tips[i];
+      }, 1400);
+    })();
+  </script>
+
   <World client:only="react" />
 
   <noscript>
     <p class="noscript">
-      This page is a 3D world that needs JavaScript. <a href="/classic">Visit the classic site →</a>
+      This page is a 3D world that needs JavaScript. <a href="/classic">Visit the classic site</a>
     </p>
   </noscript>
 </Layout>
@@ -57,6 +82,91 @@ import { contactLinks } from '../data/portfolio';
 
   .skip-link:focus {
     transform: translate(-50%, 0);
+  }
+
+  #world-shell {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background:
+      radial-gradient(circle at 50% 40%, rgba(255, 230, 190, 0.35), rgba(0, 0, 0, 0) 60%),
+      linear-gradient(180deg, #9d86b6, #d99a83 55%, #f5cba0);
+    color: #fffaee;
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    text-align: center;
+  }
+
+  .shell-card {
+    max-width: 34rem;
+  }
+
+  .shell-eyebrow {
+    margin: 0 0 0.8rem;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #ffe2a8;
+  }
+
+  .shell-title {
+    margin: 0;
+    font-size: clamp(2.6rem, 9vw, 5.2rem);
+    font-weight: 800;
+    line-height: 1;
+    text-shadow: 0 5px 0 rgba(120, 60, 40, 0.3);
+  }
+
+  .shell-sub {
+    margin: 0.9rem 0 1.8rem;
+    font-weight: 700;
+    opacity: 0.92;
+  }
+
+  .shell-bar {
+    width: min(280px, 70vw);
+    height: 12px;
+    margin: 0 auto;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 250, 238, 0.35);
+  }
+
+  .shell-bar span {
+    display: block;
+    width: 40%;
+    height: 100%;
+    border-radius: 999px;
+    background: #ffc25c;
+    animation: shell-slide 1.2s ease-in-out infinite;
+  }
+
+  @keyframes shell-slide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(250%); }
+  }
+
+  .shell-tip {
+    margin: 0.8rem 0 1.6rem;
+    font-weight: 700;
+    opacity: 0.85;
+  }
+
+  .shell-classic {
+    color: #fffaee;
+    font-weight: 600;
+    text-underline-offset: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .shell-bar span {
+      animation: none;
+      width: 100%;
+      opacity: 0.6;
+    }
   }
 
   .noscript {

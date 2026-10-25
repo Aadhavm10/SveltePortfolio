@@ -1,5 +1,5 @@
 import type { Experience, Project } from '../../../data/portfolio';
-import { drawContain, drawCover, FONT, wrapText } from '../textures';
+import { DISPLAY_FONT, drawCover, FONT, wrapText } from '../textures';
 import type { PspColumn } from './pspMenu';
 
 type Ctx = CanvasRenderingContext2D;
@@ -13,89 +13,6 @@ function dots(ctx: Ctx, cx: number, y: number, count: number, active: number, on
     ctx.arc(start + i * gap, y, i === active ? 10 : 7, 0, Math.PI * 2);
     ctx.fill();
   }
-}
-
-/** MacBook: a browser window showing one project. */
-export function drawProject(ctx: Ctx, w: number, h: number, project: Project, index: number, count: number, img: HTMLImageElement | null, active: boolean) {
-  const bg = ctx.createLinearGradient(0, 0, w, h);
-  bg.addColorStop(0, '#f6c88f');
-  bg.addColorStop(1, '#e48b7a');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, w, h);
-
-  // Window
-  const pad = 70;
-  const top = 60;
-  const ww = w - pad * 2;
-  const wh = h - top - 110;
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
-  ctx.beginPath();
-  ctx.roundRect(pad + 8, top + 14, ww, wh, 26);
-  ctx.fill();
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.roundRect(pad, top, ww, wh, 26);
-  ctx.fill();
-  ctx.fillStyle = '#eceae6';
-  ctx.beginPath();
-  ctx.roundRect(pad, top, ww, 74, [26, 26, 0, 0]);
-  ctx.fill();
-  ['#ff5f57', '#febc2e', '#28c840'].forEach((c, i) => {
-    ctx.fillStyle = c;
-    ctx.beginPath();
-    ctx.arc(pad + 42 + i * 36, top + 37, 12, 0, Math.PI * 2);
-    ctx.fill();
-  });
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.roundRect(w / 2 - 330, top + 16, 660, 42, 21);
-  ctx.fill();
-  ctx.fillStyle = '#6b6b73';
-  ctx.font = `600 24px ${FONT}`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(project.projectUrl.replace(/^https?:\/\//, '').replace(/\/$/, ''), w / 2, top + 38, 620);
-
-  // Screenshot on the left, words on the right.
-  const bodyTop = top + 74;
-  const imgW = ww * 0.56;
-  const imgX = pad + 36;
-  const imgY = bodyTop + 36;
-  const imgH = wh - 74 - 72;
-  ctx.fillStyle = '#f3f1ed';
-  ctx.beginPath();
-  ctx.roundRect(imgX, imgY, imgW, imgH, 18);
-  ctx.fill();
-  if (img) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.roundRect(imgX, imgY, imgW, imgH, 18);
-    ctx.clip();
-    (img.width / img.height > 1.25 ? drawCover : drawContain)(ctx, img, imgX, imgY, imgW, imgH);
-    ctx.restore();
-  }
-  const tx = imgX + imgW + 44;
-  const tw = pad + ww - 40 - tx;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = '#d9643f';
-  ctx.font = `800 26px ${FONT}`;
-  ctx.fillText(`WORK  ${String(index + 1).padStart(2, '0')} / ${String(count).padStart(2, '0')}`, tx, imgY + 30);
-  ctx.fillStyle = '#16161a';
-  ctx.font = `900 64px ${FONT}`;
-  wrapText(ctx, project.title, tw).forEach((line, i) => ctx.fillText(line, tx, imgY + 106 + i * 68));
-  const titleLines = wrapText(ctx, project.title, tw).length;
-  ctx.fillStyle = '#4a4a52';
-  ctx.font = `500 30px ${FONT}`;
-  wrapText(ctx, project.description, tw)
-    .slice(0, 8)
-    .forEach((line, i) => ctx.fillText(line, tx, imgY + 120 + titleLines * 68 + i * 44));
-
-  ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
-  ctx.font = `700 28px ${FONT}`;
-  if (!active) ctx.fillText('Walk up and press Enter', w / 2, h - 38);
-  dots(ctx, w / 2, h - 82, count, index, '#ffffff', 'rgba(255, 255, 255, 0.45)');
 }
 
 /** Desktop monitor: one role per page. */
@@ -264,4 +181,77 @@ export function drawPsp(ctx: Ctx, w: number, h: number, menu: PspColumn[], col: 
   ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
   ctx.font = `600 22px ${FONT}`;
   if (!active) ctx.fillText('Walk up and press Enter', w / 2, h - 28);
+}
+
+/** A fair stall's chalkboard: the project's screenshot pinned up like a polaroid, with chalk notes. */
+export function drawStallBoard(ctx: Ctx, w: number, h: number, project: Project, index: number, count: number, img: HTMLImageElement | null, accent: string, active: boolean) {
+  // Chalkboard with a soft smudge.
+  ctx.fillStyle = '#2f4a3d';
+  ctx.fillRect(0, 0, w, h);
+  const smudge = ctx.createRadialGradient(w * 0.6, h * 0.45, 40, w * 0.6, h * 0.45, w * 0.7);
+  smudge.addColorStop(0, 'rgba(255, 255, 255, 0.07)');
+  smudge.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = smudge;
+  ctx.fillRect(0, 0, w, h);
+
+  // Polaroid of the screenshot, taped at a slight angle.
+  const pw = w * 0.44;
+  const ph = pw * 0.86;
+  ctx.save();
+  ctx.translate(w * 0.27, h * 0.48);
+  ctx.rotate(-0.045);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+  ctx.fillRect(-pw / 2 + 8, -ph / 2 + 10, pw, ph);
+  ctx.fillStyle = '#fffdf6';
+  ctx.fillRect(-pw / 2, -ph / 2, pw, ph);
+  const iw = pw - 36;
+  const ih = ph - 96;
+  ctx.fillStyle = '#e9e4da';
+  ctx.fillRect(-iw / 2, -ph / 2 + 18, iw, ih);
+  if (img) drawCover(ctx, img, -iw / 2, -ph / 2 + 18, iw, ih);
+  ctx.fillStyle = '#5a4a3a';
+  ctx.font = `600 34px ${DISPLAY_FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(project.title, 0, ph / 2 - 40, pw - 40);
+  ctx.fillStyle = 'rgba(255, 236, 170, 0.75)';
+  ctx.rotate(0.12);
+  ctx.fillRect(-60, -ph / 2 - 18, 120, 34);
+  ctx.restore();
+
+  // Chalk writing.
+  const x = w * 0.54;
+  const maxW = w * 0.42;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = accent;
+  ctx.font = `600 26px ${DISPLAY_FONT}`;
+  ctx.fillText(`STALL ${index + 1} OF ${count}`, x, 92);
+  ctx.fillStyle = '#f4f1e6';
+  ctx.font = `600 62px ${DISPLAY_FONT}`;
+  const titleLines = wrapText(ctx, project.title, maxW);
+  titleLines.forEach((line, i) => ctx.fillText(line, x, 160 + i * 64));
+  // Chalk underline
+  ctx.strokeStyle = 'rgba(244, 241, 230, 0.6)';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  const uy = 160 + (titleLines.length - 1) * 64 + 18;
+  ctx.moveTo(x, uy);
+  ctx.quadraticCurveTo(x + maxW * 0.4, uy + 8, x + maxW * 0.8, uy - 2);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(244, 241, 230, 0.88)';
+  ctx.font = `600 27px ${FONT}`;
+  let y = uy + 52;
+  for (const line of wrapText(ctx, project.description, maxW).slice(0, 8)) {
+    ctx.fillText(line, x, y);
+    y += 37;
+  }
+  ctx.fillStyle = accent;
+  ctx.font = `700 22px ${FONT}`;
+  ctx.fillText(project.projectUrl.replace(/^https?:\/\//, '').replace(/\/$/, ''), x, h - 56, maxW);
+  if (!active) {
+    ctx.fillStyle = 'rgba(244, 241, 230, 0.55)';
+    ctx.font = `700 22px ${FONT}`;
+    ctx.fillText('Step up and press Enter', x, h - 24);
+  }
 }

@@ -102,7 +102,9 @@ export function Player() {
     bodies.player = rb;
     const dt = PHYSICS_STEP;
     s.time += dt;
-    const { started, mode, goalAt, challenge, mapOpen } = world.get();
+    const { started, mode, goalAt, challenge, mapOpen, station } = world.get();
+    // In the photo booth you can still walk around to pose.
+    const posing = mode === 'station' && station === 'photo';
 
     if (playerCommands.teleport) {
       const t = playerCommands.teleport;
@@ -127,7 +129,7 @@ export function Player() {
 
     const celebrating = pose.celebrate >= 0 && pose.celebrate < 1.6;
     const countdown = challenge?.phase === 'countdown' || challenge?.phase === 'done';
-    const locked = !started || mapOpen || mode === 'station' || celebrating || countdown;
+    const locked = !started || mapOpen || (mode === 'station' && !posing) || celebrating || countdown;
     const move = locked ? NO_MOVE : readMove();
     if (move.amount > 0 && !world.get().moved) world.set({ moved: true });
     const hoops = mode === 'basketball';
@@ -179,7 +181,7 @@ export function Player() {
     pose.touch = Math.max(0, pose.touch - dt * 5);
 
     const pp = rb.translation();
-    const shootHeld = !locked && isShootHeld();
+    const shootHeld = !locked && !posing && isShootHeld();
     if (locked && s.charging) {
       s.charging = false;
       pose.charge = 0;
@@ -217,7 +219,7 @@ export function Player() {
     fx.charge = s.charging ? s.charge : 0;
 
     const ball = bodies.ball;
-    if (!ball || mode === 'station') return;
+    if (!ball || (mode === 'station' && !posing)) return;
 
     const bp = ball.translation();
     const bv = ball.linvel();

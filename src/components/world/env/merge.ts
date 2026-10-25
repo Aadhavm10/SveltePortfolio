@@ -1,4 +1,4 @@
-import { BufferGeometry, Euler, Matrix4, Quaternion, Vector3 } from 'three';
+import { BufferAttribute, BufferGeometry, Color, Euler, Matrix4, Quaternion, Vector3 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export interface Part {
@@ -22,4 +22,15 @@ export function mergeParts(parts: Part[]) {
       return g.applyMatrix4(matrix);
     })
   );
+}
+
+/** Bakes one colour into a geometry's vertex colours, so differently coloured parts can share a mesh. */
+export function tinted(geometry: BufferGeometry, color: string) {
+  const g = geometry.index ? geometry.toNonIndexed() : geometry;
+  const c = new Color(color);
+  const count = g.getAttribute('position').count;
+  const colors = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) colors.set([c.r, c.g, c.b], i * 3);
+  g.setAttribute('color', new BufferAttribute(colors, 3));
+  return g;
 }

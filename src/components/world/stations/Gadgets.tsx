@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
 import { CuboidCollider, CylinderCollider, RigidBody } from '@react-three/rapier';
 import { ExtrudeGeometry, MeshStandardMaterial, Shape, ShapeGeometry } from 'three';
-import { photos } from '../../../data/portfolio';
-import { canvasTexture, drawCover, FONT, loadImage } from '../textures';
+import { canvasTexture, drawCover, FONT } from '../textures';
+import { Cable } from './Cable';
 import { PROPS, PSP_TILT } from '../layout';
 import { world } from '../store';
 import { useScreen, WOOD } from './common';
@@ -220,40 +220,37 @@ function leatherTexture() {
   });
 }
 
-/** Retro silver-and-black rangefinder on a tripod: look through it to flip through photos. */
-export function PhotoCamera() {
-  const images = useRef<Record<number, HTMLImageElement>>({});
-  const draw = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
-    const s = world.get();
-    const page = s.station === 'camera' ? s.page : 0;
-    ctx.fillStyle = '#0d0d10';
-    ctx.fillRect(0, 0, w, h);
-    const img = images.current[page];
-    if (img) drawCover(ctx, img, 0, 0, w, h);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.font = `700 26px ${FONT}`;
-    ctx.fillText(`${page + 1}/${photos.length}`, 18, h - 18);
-  };
-  const lcd = useScreen(512, 340, draw, () => {
-    const s = world.get();
-    return `${s.station === 'camera' ? s.page : 0}|${Object.keys(images.current).length}`;
-  });
+/** The last photo taken, shown on the camera's back screen. */
+export const photoBooth: { last: HTMLCanvasElement | null; shots: number } = { last: null, shots: 0 };
 
-  useEffect(() => {
-    const load = () => {
-      const s = world.get();
-      const page = s.station === 'camera' ? s.page : 0;
-      if (images.current[page]) return;
-      loadImage(photos[page])
-        .then((img) => {
-          images.current[page] = img;
-          lcd.redraw(draw);
-        })
-        .catch(() => {});
-    };
-    load();
-    return world.subscribe(load);
-  }, []);
+/** A small silver-and-black rangefinder on a tripod: the photo booth. */
+export function PhotoCamera() {
+  const draw = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    const g = ctx.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, '#ffb3a1');
+    g.addColorStop(1, '#ffd28a');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    if (photoBooth.last) {
+      drawCover(ctx, photoBooth.last, 0, 0, w, h);
+    } else {
+      // A little drawn camera and a prompt until the first photo.
+      ctx.fillStyle = '#fffaee';
+      ctx.beginPath();
+      ctx.roundRect(w / 2 - 70, h / 2 - 70, 140, 96, 18);
+      ctx.fill();
+      ctx.fillRect(w / 2 - 30, h / 2 - 86, 60, 20);
+      ctx.fillStyle = '#ff8a7a';
+      ctx.beginPath();
+      ctx.arc(w / 2, h / 2 - 22, 30, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#4a3b2c';
+      ctx.font = `800 34px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.fillText('Say cheese', w / 2, h / 2 + 90);
+    }
+  };
+  const lcd = useScreen(512, 340, draw, () => `${photoBooth.shots}|${world.get().polaroid}`);
 
   const textures = useMemo(
     () => ({
@@ -268,9 +265,10 @@ export function PhotoCamera() {
   const { x, z } = PROPS.camera;
   const legs = [0, 1, 2].map((i) => (i / 3) * Math.PI * 2 + Math.PI / 2);
   return (
-    <group position={[x, 0, z]}>
+    // The lens faces the visitor: this is the camera that takes their photo.
+    <group position={[x, 0, z]} rotation={[0, Math.PI, 0]} scale={0.72}>
       <RigidBody type="fixed" colliders={false}>
-        <CylinderCollider args={[1.2, 0.7]} position={[0, 1.2, 0]} />
+        <CylinderCollider args={[1.2, 0.6]} position={[0, 1.2, 0]} />
       </RigidBody>
       {legs.map((a, i) => (
         <mesh key={i} position={[Math.cos(a) * 0.38, 0.78, Math.sin(a) * 0.38]} rotation={[Math.sin(a) * -0.32, 0, Math.cos(a) * 0.32]} material={GUNMETAL} castShadow>
@@ -345,12 +343,25 @@ export function PhotoCamera() {
             <cylinderGeometry args={[0.04, 0.04, 0.02, 16]} />
           </mesh>
         ))}
-        {/* Strap lugs */}
+        {/* Strap lugs and a red strap hanging between them */}
         {[-1, 1].map((side) => (
           <mesh key={side} material={SILVER} position={[side * 0.77, 0.3, 0]} rotation={[0, Math.PI / 2, 0]}>
             <torusGeometry args={[0.05, 0.015, 8, 16]} />
           </mesh>
         ))}
+        <Cable
+          color="#d9573f"
+          plug="#c5ccd2"
+          radius={0.03}
+          points={[
+            [-0.8, 0.28, 0.02],
+            [-0.85, -0.25, 0.12],
+            [-0.45, -0.72, 0.16],
+            [0.2, -0.8, 0.16],
+            [0.7, -0.4, 0.12],
+            [0.8, 0.28, 0.02]
+          ]}
+        />
       </group>
     </group>
   );

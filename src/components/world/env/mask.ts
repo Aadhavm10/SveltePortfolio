@@ -1,5 +1,6 @@
 import { CatmullRomCurve3, CanvasTexture, LinearFilter, Vector3 } from 'three';
-import { CLEARINGS, COURT, FIELD, PATHS, POND, PROPS, STREAMS, ZEN_GARDEN } from '../layout';
+import { projects } from '../../../data/portfolio';
+import { CLEARINGS, COURT, FAIR, FIELD, PATHS, POND, PROPS, stallX, STREAMS, ZEN_GARDEN } from '../layout';
 
 /** Normalised elliptical distance from the pond centre (1 = shoreline). */
 export function pondDistance(x: number, z: number) {
@@ -27,11 +28,13 @@ export function pathPoints(curve: CatmullRomCurve3) {
 
 /** Footprints of props that sit on bare ground: [x, z, halfWidth, halfDepth]. */
 const PADS: [number, number, number, number][] = [
-  [PROPS.laptop.x, PROPS.laptop.z, 4, 3],
-  [PROPS.monitor.x, PROPS.monitor.z, 4.5, 2.8],
+  [(PROPS.laptop.x + PROPS.monitor.x) / 2, PROPS.laptop.z - 0.5, 9, 3.8],
   [PROPS.psp.x, PROPS.psp.z + 0.5, 3.5, 2.2],
   [PROPS.scoreboard.x, PROPS.scoreboard.z, 1.6, 1],
-  [PROPS.ballRack.x, PROPS.ballRack.z, 1.4, 1]
+  [PROPS.ballRack.x, PROPS.ballRack.z, 1.4, 1],
+  [PROPS.cottage.x, PROPS.cottage.z, 3.4, 2.8],
+  // The fair: stalls plus a little apron in front of each
+  [stallX(0) + ((projects.length - 1) * FAIR.spacing) / 2, FAIR.z + 0.6, ((projects.length - 1) * FAIR.spacing) / 2 + FAIR.width / 2 + 0.4, FAIR.depth / 2 + 1.2]
 ];
 
 /** White where grass grows, black where it doesn't; edges are softened. */
@@ -62,9 +65,12 @@ export function createGrassMask() {
   for (const [x, z, hw, hd] of PADS) ctx.fillRect(X(x - hw), Z(z - hd), M(hw * 2), M(hd * 2));
   ctx.fillRect(X(ZEN_GARDEN.x - ZEN_GARDEN.w / 2 - 0.6), Z(ZEN_GARDEN.z - ZEN_GARDEN.d / 2 - 0.6), M(ZEN_GARDEN.w + 1.2), M(ZEN_GARDEN.d + 1.2));
 
-  // Camera tripod and the letters' footprint.
+  // Globe stand, camera tripod and the letters' footprint.
   ctx.beginPath();
-  ctx.arc(X(PROPS.camera.x), Z(PROPS.camera.z), M(1.6), 0, Math.PI * 2);
+  ctx.arc(X(PROPS.globe.x), Z(PROPS.globe.z), M(2.2), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(X(PROPS.camera.x), Z(PROPS.camera.z), M(1.1), 0, Math.PI * 2);
   ctx.fill();
   ctx.fillRect(X(PROPS.letters.x - 8), Z(PROPS.letters.z - 1), M(16), M(2));
 
