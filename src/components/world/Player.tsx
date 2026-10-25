@@ -8,8 +8,8 @@ import { basketball } from './games/basketballState';
 import { HeldBasketball } from './games/Court';
 import { input, isShootHeld, readMove } from './input';
 import { groundOffset, inWater } from './env/Streams';
-import { BOUNDS, GOAL, SPAWN, STATIONS } from './layout';
-import { playKick, playTouch } from './sound';
+import { BOUNDS, COURT, GOAL, SPAWN, STATIONS } from './layout';
+import { playKick, playStep, playTouch, type Surface } from './sound';
 import { bodies, fx, PHYSICS_STEP, world } from './store';
 
 const RUN_SPEED = 5.6;
@@ -134,7 +134,8 @@ export function Player() {
 
     // Velocity eases toward the target; braking is quicker than speeding up. Wading is a little slower.
     const here = rb.translation();
-    const wading = inWater(here.x, here.z);
+    const offset = groundOffset(here.x, here.z);
+    const wading = offset < -0.05;
     const slow = (s.charging ? (hoops ? 0.4 : 0) : s.kickT >= 0 || s.shootT >= 0 ? 0.3 : 1) * (wading ? 0.8 : 1);
     const maxSpeed = (move.sprint && !hoops ? SPRINT_SPEED : RUN_SPEED) * slow * move.amount;
     const tx = move.x * maxSpeed;
@@ -170,6 +171,11 @@ export function Player() {
     const prevPhase = pose.phase;
     if (speed > 0.3) pose.phase += dt * (2.4 + speed * 1.4);
     const stepped = Math.floor(prevPhase / Math.PI) !== Math.floor(pose.phase / Math.PI);
+    if (stepped && speed > 1 && rb.translation().y < 0.2) {
+      const onCourt = here.x > COURT.minX && here.x < COURT.maxX && here.z > COURT.minZ && here.z < COURT.maxZ;
+      const surface: Surface = offset > 0.05 ? 'wood' : wading ? 'water' : onCourt ? 'hard' : 'grass';
+      playStep(surface, speed);
+    }
     pose.touch = Math.max(0, pose.touch - dt * 5);
 
     const pp = rb.translation();

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Ambience } from './ambience';
 import { Ball } from './Ball';
 import { Dust } from './env/Dust';
 import { Scatter, Trees } from './env/Foliage';
@@ -43,6 +44,7 @@ export function Scene() {
       <Markers />
       <Player />
       <Ball />
+      <Ambience />
     </>
   );
 }

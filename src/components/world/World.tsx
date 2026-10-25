@@ -5,9 +5,9 @@ import { CameraRig } from './CameraRig';
 import { Hud } from './Hud';
 import { Scene } from './Scene';
 import { bindKeyboard } from './input';
-import { setMuted } from './sound';
+import { setMuted, setMusicOn } from './sound';
 import { GOLDEN } from './env/palette';
-import { MUTE_KEY, PHYSICS_STEP, useWorld, world } from './store';
+import { MUSIC_KEY, MUTE_KEY, PHYSICS_STEP, useWorld, world } from './store';
 import '@fontsource-variable/fredoka';
 import '@fontsource-variable/nunito';
 import './world.css';
@@ -18,14 +18,17 @@ export default function World() {
 
   useEffect(() => {
     let muted = false;
+    let music = true;
     try {
       muted = localStorage.getItem(MUTE_KEY) === '1';
+      music = localStorage.getItem(MUSIC_KEY) !== '0';
     } catch {
       // Storage can be unavailable (private mode); sound just defaults to on.
     }
     setMuted(muted);
+    setMusicOn(music);
     const touch = window.matchMedia('(pointer: coarse)').matches;
-    world.set({ touch, muted, quality: touch ? 'low' : 'high' });
+    world.set({ touch, muted, music, quality: touch ? 'low' : 'high' });
 
     // Canvas textures draw with these fonts, so wait for them (but never block on it for long).
     const fonts = Promise.all([

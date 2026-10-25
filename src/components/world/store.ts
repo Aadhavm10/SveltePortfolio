@@ -3,6 +3,7 @@ import type { RapierRigidBody } from '@react-three/rapier';
 import type { StationId } from './layout';
 
 export const MUTE_KEY = 'world-muted';
+export const MUSIC_KEY = 'world-music';
 /** Fixed physics timestep; gameplay logic runs once per step. */
 export const PHYSICS_STEP = 1 / 60;
 
@@ -28,6 +29,8 @@ export interface WorldState {
   /** The visitor pressed "Kick off". */
   started: boolean;
   muted: boolean;
+  /** Background music on/off (ambience and effects follow `muted` only). */
+  music: boolean;
   touch: boolean;
   /** 'low' on phones and software renderers: less grass, smaller shadows. */
   quality: 'high' | 'low';
@@ -53,6 +56,7 @@ let state: WorldState = {
   ready: false,
   started: false,
   muted: false,
+  music: true,
   touch: false,
   quality: 'high',
   moved: false,

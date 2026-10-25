@@ -260,6 +260,10 @@
   transition: transform 0.15s ease;
 }
 
+.world-icon-btn.is-off {
+  color: var(--muted);
+}
+
 .world-pill:hover,
 .world-icon-btn:hover {
   transform: translateY(-2px);
@@ -957,6 +961,26 @@
 
   .world-name {
     font-size: 0.8rem;
+  }
+}
+
+/* Small phones: tighten the top bar so it fits beside the name */
+@media (max-width: 420px) {
+  .world-topbar {
+    gap: 0.5rem;
+  }
+
+  .world-topbar-actions {
+    gap: 0.35rem;
+  }
+
+  .world-icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .world-pill {
+    padding: 0.5rem 0.75rem;
   }
 }
 

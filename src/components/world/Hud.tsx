@@ -6,13 +6,28 @@ import { CHALLENGE_SECONDS, quitChallenge, startChallenge, tickChallenge } from 
 import { clearInput, input } from './input';
 import { stationById, type StationId } from './layout';
 import { MapOverlay, toggleMap } from './MapOverlay';
-import { initAudio, setMuted } from './sound';
+import { startAmbience } from './ambience';
+import { startMusic } from './music';
+import { initAudio, setMusicOn, setMuted } from './sound';
 import { PSP_MENU } from './stations/pspMenu';
-import { bodies, fx, MUTE_KEY, useWorld, world } from './store';
+import { bodies, fx, MUSIC_KEY, MUTE_KEY, useWorld, world } from './store';
 
 function start() {
   initAudio();
+  startAmbience();
+  startMusic();
   world.set({ started: true });
+}
+
+function toggleMusic() {
+  const music = !world.get().music;
+  setMusicOn(music);
+  world.set({ music });
+  try {
+    localStorage.setItem(MUSIC_KEY, music ? '1' : '0');
+  } catch {
+    // Storage can be unavailable (private mode); the toggle still works for this visit.
+  }
 }
 
 function toggleMute() {
@@ -197,6 +212,7 @@ function ContactDock() {
 
 function TopBar() {
   const muted = useWorld((s) => s.muted);
+  const music = useWorld((s) => s.music);
   return (
     <header className="world-topbar">
       <span className="world-name">Aadhav Manimurugan</span>
@@ -215,6 +231,23 @@ function TopBar() {
             {' '}
             Map
           </span>
+        </button>
+        <button
+          type="button"
+          className={`world-icon-btn${music && !muted ? '' : ' is-off'}`}
+          onClick={(e) => {
+            toggleMusic();
+            e.currentTarget.blur();
+          }}
+          aria-label={music ? 'Turn music off' : 'Turn music on'}
+          aria-pressed={music}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M9 18V5l12-2v13" />
+            <circle cx="6" cy="18" r="3" />
+            <circle cx="18" cy="16" r="3" />
+            {!music && <path d="m3 3 18 18" />}
+          </svg>
         </button>
         <button
           type="button"

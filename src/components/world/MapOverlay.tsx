@@ -3,12 +3,14 @@ import { pathCurves, pathPoints, streamCurves } from './env/mask';
 import { clearInput, input } from './input';
 import { BOUNDS, COURT, FIELD, GOAL, POND, STATIONS, ZEN_GARDEN, type Station } from './layout';
 import { playerCommands } from './Player';
-import { playOpen } from './sound';
+import { playClose, playOpen, playTick } from './sound';
 import { bodies, useWorld, world } from './store';
 
-export function toggleMap(open = !world.get().mapOpen) {
+export function toggleMap(open = !world.get().mapOpen, silent = false) {
   if (open && world.get().mode !== 'play') return;
+  if (open === world.get().mapOpen) return;
   clearInput();
+  if (!silent) (open ? playTick : playClose)();
   world.set({ mapOpen: open });
 }
 
@@ -17,7 +19,7 @@ function travel(station: Station) {
   playerCommands.teleport = { x: station.x, z: station.z + 1.2, yaw: Math.PI };
   input.resetBall = true;
   playOpen();
-  toggleMap(false);
+  toggleMap(false, true);
 }
 
 const polyline = (points: { x: number; z: number }[]) => points.map((p) => `${p.x.toFixed(1)},${p.z.toFixed(1)}`).join(' ');
