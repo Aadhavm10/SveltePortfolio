@@ -297,7 +297,7 @@ function Stall({ project, index }: { project: Project; index: number }) {
     let cancelled = false;
     const load = () => {
       if (!world.get().started || image.current) return;
-      const small = project.src.replace(/^\/projectpics\/(.+)\.\w+$/, '/world/projects/$1.webp');
+      const small = project.src.replace(/^(\.?)\/projectpics\/(.+)\.\w+$/, '$1/world/projects/$2.webp');
       loadImage(small)
         .catch(() => loadImage(project.src))
         .then((img) => {
