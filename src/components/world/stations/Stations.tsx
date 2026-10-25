@@ -1,10 +1,11 @@
 import { StaticBatch } from '../env/batch';
 import { Capture } from './Capture';
-import { Cottage, RoomViewer } from './Cottage';
+import { Cottage } from './Cottage';
 import { Desk } from './Desk';
 import { Fair } from './Fair';
 import { PhotoCamera, Psp } from './Gadgets';
 import { Globe } from './Globe';
+import { Room } from './Room';
 
 export function Stations() {
   return (
@@ -27,7 +28,7 @@ export function Stations() {
       <StaticBatch>
         <Cottage />
       </StaticBatch>
-      <RoomViewer />
+      <Room />
       <Capture />
     </>
   );

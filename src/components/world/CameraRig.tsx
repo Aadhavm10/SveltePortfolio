@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { MathUtils, PerspectiveCamera, Vector3 } from 'three';
 import { COURT, GOAL, PROPS, SPAWN, stationById } from './layout';
-import { ROOM_ORIGIN, roomView } from './stations/Cottage';
+import { ROOM_EYE, ROOM_ORIGIN, roomView } from './stations/Room';
 import { bodies, fx, world } from './store';
 
 /** Gameplay camera offset from the player: behind and above, looking north. */
@@ -68,13 +68,13 @@ export function CameraRig() {
     }
 
     if (inRoom) {
-      // Inside the panorama: stand at its centre and look where the visitor drags.
+      // Inside the room: stand in the middle and look where the visitor drags.
       const cp = Math.cos(roomView.pitch);
-      rig.desiredPos.copy(ROOM_ORIGIN);
+      rig.desiredPos.copy(ROOM_ORIGIN).add(ROOM_EYE);
       rig.desiredLook.set(
-        ROOM_ORIGIN.x + Math.cos(roomView.yaw) * cp,
-        ROOM_ORIGIN.y + Math.sin(roomView.pitch),
-        ROOM_ORIGIN.z + Math.sin(roomView.yaw) * cp
+        rig.desiredPos.x + Math.cos(roomView.yaw) * cp,
+        rig.desiredPos.y + Math.sin(roomView.pitch),
+        rig.desiredPos.z + Math.sin(roomView.yaw) * cp
       );
       lambda = 60;
     } else if (mode === 'station' && station === 'photo' && p) {

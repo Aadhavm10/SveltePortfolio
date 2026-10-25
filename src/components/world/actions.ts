@@ -5,7 +5,7 @@ import { clearInput } from './input';
 import type { StationId } from './layout';
 import { playClose, playOpen, playTick } from './sound';
 import { takePhoto } from './stations/Capture';
-import { turnRoom } from './stations/Cottage';
+import { resetRoomView, turnRoom } from './stations/Room';
 import { faceSelectedPlace, stepPlace } from './stations/Globe';
 import { PSP_MENU } from './stations/pspMenu';
 import { world } from './store';
@@ -29,6 +29,7 @@ export function openStation(id: StationId) {
   const extra = id === 'room' ? { roomFadeAt: performance.now() } : {};
   world.set({ mode: 'station', station: id, page: 0, psp: { col: 0, row: 0 }, gallery: -1, polaroid: null, ...extra });
   if (id === 'globe') faceSelectedPlace();
+  if (id === 'room') resetRoomView();
 }
 
 export function closeStation() {

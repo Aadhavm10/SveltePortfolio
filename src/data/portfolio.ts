@@ -184,26 +184,23 @@ export const places: Place[] = [
   }
 ];
 
-/**
- * A 360 photo of your room (equirectangular, 2:1, e.g. 4096 x 2048), saved under /public.
- * Leave null to show the drawn placeholder room.
- */
-export const roomPanorama: string | null = null;
-
 export interface RoomHotspot {
-  /** Where it sits in the panorama: across (0 to 1, left to right) and up (-90 to 90 degrees). */
-  u: number;
-  pitch: number;
+  /** Which thing in the room it labels (see stations/Room.tsx for where each one sits). */
+  id: 'jerseys' | 'desk' | 'records' | 'scarves' | 'guitar' | 'starwars' | 'flag' | 'tv' | 'skyline';
   title: string;
   note: string;
   href?: string;
 }
 
-// TODO(Aadhav): once the panorama is in, move these onto the real things in your room.
+// Labels inside the room. Rewrite the notes in your own words.
 export const roomHotspots: RoomHotspot[] = [
-  { u: 0.25, pitch: 12, title: 'Film wall', note: 'Posters of films I love. My full list is on Letterboxd.', href: favoriteLinks[1].href },
-  { u: 0.5, pitch: 6, title: 'Window', note: 'Placeholder room. Swap in a 360 photo of the real one.' },
-  { u: 0.68, pitch: -8, title: 'Record player', note: 'What is on repeat right now.', href: playlists[0].href },
-  { u: 0.8, pitch: 14, title: 'Game shelf', note: 'The games I have played through. Trophies on PSN.', href: favoriteLinks[0].href },
-  { u: 0.02, pitch: 18, title: 'Jersey', note: 'Your club and your number go here.' }
+  { id: 'jerseys', title: 'The number 7 wall', note: 'Ribéry, Ronaldo and Di María. All number 7.' },
+  { id: 'desk', title: 'Desk', note: 'Where most of my projects get built.', href: '/projects' },
+  { id: 'records', title: 'Record player', note: 'Something is always spinning. My playlists live on the PSP.', href: playlists[0].href },
+  { id: 'scarves', title: 'Scarves', note: 'Man Utd, and one from the France v España semi-final in Dallas, 2026.' },
+  { id: 'guitar', title: 'Guitar', note: 'My acoustic.' },
+  { id: 'starwars', title: 'Star Wars wall', note: 'Vader and C-3PO, with my medals underneath.' },
+  { id: 'flag', title: 'Welcome to my crib', note: 'The first thing you see when you walk in.' },
+  { id: 'tv', title: 'TV', note: 'Games and matches. Trophies are on PSN.', href: favoriteLinks[0].href },
+  { id: 'skyline', title: 'New York', note: 'A black and white New York skyline over the mirror.' }
 ];

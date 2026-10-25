@@ -7,7 +7,7 @@ The home page is a small 3D park at golden hour. You start on a soccer field and
 - **Monitor**: my experience
 - **Travels**: a globe with pins where I've been; each opens photos and a story
 - **Photo booth**: a camera that takes a polaroid of you in the park to download
-- **My room**: a cottage you can step into, a 360 view of my room
+- **My room**: a cottage you can step into; inside is a little model of my real room (the number 7 jerseys, scarves, record player, desk and all)
 - **PSP**: playlists, favorites and (soon) a little game
 - **Shooting challenge** and **3-point shootout**: 60-second mini-games with best scores
 
@@ -22,7 +22,7 @@ Everything lives in `src/data/portfolio.ts`:
 - `projects`: one stall each
 - `experience`: one monitor page each
 - `places`: globe pins. Give each a name, country, `lat`/`lng` (right-click the spot in Google Maps to copy them), when, a short story, and photo paths. Put the photos in `public/world/places/`
-- `roomPanorama`: a 360 photo of your room, equirectangular 2:1 (e.g. 4096 x 2048), saved under `public/`. Most phones can take one (Google Street View app, or the panorama mode in some camera apps); `roomHotspots` are the labels you can click inside it
+- `roomHotspots`: the labels you can click inside the room (the room itself is modelled in `src/components/world/stations/Room.tsx`)
 - `favoriteLinks`, `playlists`: the PSP menus
 - Drop a résumé at `public/resume.pdf`
 
@@ -32,7 +32,7 @@ Everything lives in `src/data/portfolio.ts`:
 - Big libraries (three.js, physics) are split into their own cached files
 - Phones, low-memory devices and software renderers start on a lighter setting (less grass, smaller shadows, lower resolution), and the frame rate is watched: if it drops, the resolution and then the scene step down automatically
 - Static props are merged into a few meshes at load to keep draw calls down
-- Photos and the room panorama only load when you open them
+- Photos only load when you open them, and the room is only drawn while you're inside it
 
 ## Tech Stack
 
