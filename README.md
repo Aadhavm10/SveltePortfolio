@@ -7,7 +7,7 @@ The home page is a small 3D park at golden hour. You start on a soccer field and
 - **Monitor**: my experience
 - **Travels**: a globe with pins where I've been; each opens photos and a story
 - **Photo booth**: a camera that takes a polaroid of you in the park to download
-- **My room**: a cottage you can step into; inside is a little model of my real room (the number 7 jerseys, scarves, record player, desk and all)
+- **My room**: a cottage you can step into; inside is a cutaway diorama of my real room (the number 7 jerseys, scarves, record player, desk and all) that you can spin around
 - **PSP**: playlists, favorites and (soon) a little game
 - **Shooting challenge** and **3-point shootout**: 60-second mini-games with best scores
 

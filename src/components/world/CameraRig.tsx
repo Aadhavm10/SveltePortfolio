@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { MathUtils, PerspectiveCamera, Vector3 } from 'three';
 import { COURT, GOAL, PROPS, SPAWN, stationById } from './layout';
-import { ROOM_EYE, ROOM_ORIGIN, roomView } from './stations/Room';
+import { ROOM_TARGET, roomView } from './stations/Room';
 import { bodies, fx, world } from './store';
 
 /** Gameplay camera offset from the player: behind and above, looking north. */
@@ -68,13 +68,15 @@ export function CameraRig() {
     }
 
     if (inRoom) {
-      // Inside the room: stand in the middle and look where the visitor drags.
+      // The room: orbit the diorama from outside (it lives in its own scene, centred on the origin).
+      // Back off on narrow screens so the whole room still fits across.
+      const dist = roomView.dist * (aspect < 1.05 ? Math.max(1, 1.1 / aspect) : 1);
       const cp = Math.cos(roomView.pitch);
-      rig.desiredPos.copy(ROOM_ORIGIN).add(ROOM_EYE);
-      rig.desiredLook.set(
-        rig.desiredPos.x + Math.cos(roomView.yaw) * cp,
-        rig.desiredPos.y + Math.sin(roomView.pitch),
-        rig.desiredPos.z + Math.sin(roomView.yaw) * cp
+      rig.desiredLook.set(ROOM_TARGET.x, ROOM_TARGET.y, ROOM_TARGET.z);
+      rig.desiredPos.set(
+        ROOM_TARGET.x + Math.sin(roomView.yaw) * cp * dist,
+        ROOM_TARGET.y + Math.sin(roomView.pitch) * dist,
+        ROOM_TARGET.z + Math.cos(roomView.yaw) * cp * dist
       );
       lambda = 60;
     } else if (mode === 'station' && station === 'photo' && p) {
@@ -142,8 +144,8 @@ export function CameraRig() {
       rig.look.z = MathUtils.damp(rig.look.z, rig.desiredLook.z, lambda + 1, dt);
     }
 
-    // A wider lens inside the room so it feels like standing in it.
-    const fov = inRoom ? 78 : 42;
+    // A longer lens on the room makes it read like a little diorama.
+    const fov = inRoom ? 30 : 42;
     if (camera.fov !== fov) {
       camera.fov = fov;
       camera.updateProjectionMatrix();

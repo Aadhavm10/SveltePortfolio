@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Color, PMREMGenerator, type DirectionalLight, type HemisphereLight } from 'three';
+import { PMREMGenerator, type DirectionalLight } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { bodies, world } from '../store';
 import { GOLDEN, SUN_DIR } from './palette';
@@ -12,12 +12,6 @@ const SHADOW_EXTENT_LOW = 20;
 /** Low warm sun (its shadow camera follows the player), a sky fill and a soft front fill. */
 export function Lights() {
   const sun = useRef<DirectionalLight>(null);
-  const hemi = useRef<HemisphereLight>(null);
-  const fill = useRef<DirectionalLight>(null);
-  const tones = useMemo(
-    () => ({ sky: new Color(GOLDEN.hemiSky), ground: new Color(GOLDEN.hemiGround), roomSky: new Color('#fff1e0'), roomGround: new Color('#b89a7a') }),
-    []
-  );
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
 
@@ -38,17 +32,8 @@ export function Lights() {
   const extent = low ? SHADOW_EXTENT_LOW : SHADOW_EXTENT;
 
   useFrame(({ camera }) => {
-    // Indoors (the room) the light is soft and even; outdoors the low sun does the work.
-    const indoors = world.get().station === 'room';
-    if (hemi.current) {
-      hemi.current.intensity = indoors ? 2.6 : 1.45;
-      hemi.current.color.copy(indoors ? tones.roomSky : tones.sky);
-      hemi.current.groundColor.copy(indoors ? tones.roomGround : tones.ground);
-    }
-    if (fill.current) fill.current.intensity = indoors ? 0.35 : 0.8;
     const light = sun.current;
     if (!light) return;
-    light.intensity = indoors ? 0.7 : 4.4;
     const p = bodies.player?.translation();
     const x = p?.x ?? camera.position.x;
     const z = p ? p.z - 4 : camera.position.z - 12;
@@ -59,9 +44,9 @@ export function Lights() {
 
   return (
     <>
-      <hemisphereLight ref={hemi} args={[GOLDEN.hemiSky, GOLDEN.hemiGround, 1.45]} />
+      <hemisphereLight args={[GOLDEN.hemiSky, GOLDEN.hemiGround, 1.45]} />
       {/* Soft fill from the camera's side so faces and screens aren't lost against the low sun. */}
-      <directionalLight ref={fill} color="#ffe3c8" intensity={0.8} position={[12, 14, 30]} />
+      <directionalLight color="#ffe3c8" intensity={0.8} position={[12, 14, 30]} />
       <directionalLight
         ref={sun}
         castShadow

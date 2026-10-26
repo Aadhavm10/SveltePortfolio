@@ -256,7 +256,7 @@ function RoomHud() {
   return (
     <>
       <div key={fadeAt} className="world-room-fade" aria-hidden="true" />
-      <Bar station="room" title="My room" sub="Drag to look around">
+      <Bar station="room" title="My room" sub="Drag to spin it around">
         <IconButton label="Look left" onClick={() => arrow(-1, 0)}>
           <ArrowLeft size={18} />
         </IconButton>
