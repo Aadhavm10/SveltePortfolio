@@ -1,6 +1,6 @@
 import { CatmullRomCurve3, CanvasTexture, LinearFilter, Vector3 } from 'three';
 import { projects } from '../../../data/portfolio';
-import { CLEARINGS, COURT, FAIR, FIELD, PATHS, POND, PROPS, stallX, STREAMS, ZEN_GARDEN } from '../layout';
+import { CLEARINGS, COURT, FAIR, FIELD, PATHS, POND, PROPS, stallX, STREAMS, TOYS, ZEN_GARDEN } from '../layout';
 
 /** Normalised elliptical distance from the pond centre (1 = shoreline). */
 export function pondDistance(x: number, z: number) {
@@ -32,7 +32,7 @@ const PADS: [number, number, number, number][] = [
   [PROPS.psp.x, PROPS.psp.z + 0.5, 3.5, 2.2],
   [PROPS.scoreboard.x, PROPS.scoreboard.z, 1.6, 1],
   [PROPS.ballRack.x, PROPS.ballRack.z, 1.4, 1],
-  [PROPS.cottage.x, PROPS.cottage.z, 3.4, 2.8],
+  [TOYS.bowling.x, TOYS.bowling.z, 1.2, TOYS.bowling.length / 2 + 0.3],
   // The fair: stalls plus a little apron in front of each
   [stallX(0) + ((projects.length - 1) * FAIR.spacing) / 2, FAIR.z + 0.6, ((projects.length - 1) * FAIR.spacing) / 2 + FAIR.width / 2 + 0.4, FAIR.depth / 2 + 1.2]
 ];
@@ -65,7 +65,10 @@ export function createGrassMask() {
   for (const [x, z, hw, hd] of PADS) ctx.fillRect(X(x - hw), Z(z - hd), M(hw * 2), M(hd * 2));
   ctx.fillRect(X(ZEN_GARDEN.x - ZEN_GARDEN.w / 2 - 0.6), Z(ZEN_GARDEN.z - ZEN_GARDEN.d / 2 - 0.6), M(ZEN_GARDEN.w + 1.2), M(ZEN_GARDEN.d + 1.2));
 
-  // Globe stand, camera tripod and the letters' footprint.
+  // My room's plinth, the globe stand, camera tripod and the letters' footprint.
+  ctx.beginPath();
+  ctx.arc(X(PROPS.room.x), Z(PROPS.room.z), M(3.9), 0, Math.PI * 2);
+  ctx.fill();
   ctx.beginPath();
   ctx.arc(X(PROPS.globe.x), Z(PROPS.globe.z), M(2.2), 0, Math.PI * 2);
   ctx.fill();

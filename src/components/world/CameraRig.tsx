@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { MathUtils, PerspectiveCamera, Vector3 } from 'three';
 import { COURT, GOAL, PROPS, SPAWN, stationById } from './layout';
-import { ROOM_TARGET, roomView } from './stations/Room';
+import { roomOrbit } from './stations/Room';
 import { bodies, fx, world } from './store';
 
 /** Gameplay camera offset from the player: behind and above, looking north. */
@@ -26,8 +26,7 @@ export function CameraRig() {
       targetZoom: 1,
       intro: 0,
       /** Jump straight to the next view (walking into or out of the room). */
-      snap: false,
-      wasRoom: false
+      fov: 42
     }),
     []
   );
@@ -62,23 +61,11 @@ export function CameraRig() {
 
     const view = mode === 'station' && station ? stationById[station].view : undefined;
     const inRoom = mode === 'station' && station === 'room';
-    if (inRoom !== rig.wasRoom) {
-      rig.wasRoom = inRoom;
-      rig.snap = true;
-    }
 
     if (inRoom) {
-      // The room: orbit the diorama from outside (it lives in its own scene, centred on the origin).
-      // Back off on narrow screens so the whole room still fits across.
-      const dist = roomView.dist * (aspect < 1.05 ? Math.max(1, 1.1 / aspect) : 1);
-      const cp = Math.cos(roomView.pitch);
-      rig.desiredLook.set(ROOM_TARGET.x, ROOM_TARGET.y, ROOM_TARGET.z);
-      rig.desiredPos.set(
-        ROOM_TARGET.x + Math.sin(roomView.yaw) * cp * dist,
-        ROOM_TARGET.y + Math.sin(roomView.pitch) * dist,
-        ROOM_TARGET.z + Math.cos(roomView.yaw) * cp * dist
-      );
-      lambda = 60;
+      // The room: circle it from outside. Back off on narrow screens so all of it fits across.
+      roomOrbit(rig.desiredPos, rig.desiredLook, aspect < 1.05 ? Math.max(1, 1.1 / aspect) : 1);
+      lambda = 4;
     } else if (mode === 'station' && station === 'photo' && p) {
       // Photo booth: see through the tripod camera's lens; it pans to keep you in frame as you pose.
       rig.desiredPos.set(PROPS.camera.x, 1.45, PROPS.camera.z + 0.55);
@@ -131,10 +118,6 @@ export function CameraRig() {
       const introPos = new Vector3(SPAWN.x + Math.sin(sway) * 34, 26, SPAWN.z - 8 + Math.cos(sway) * 34);
       rig.position.copy(introPos.lerp(rig.desiredPos, e));
       rig.look.set(SPAWN.x, 0, SPAWN.z - 8).lerp(rig.desiredLook, e);
-    } else if (rig.snap) {
-      rig.snap = false;
-      rig.position.copy(rig.desiredPos);
-      rig.look.copy(rig.desiredLook);
     } else {
       rig.position.x = MathUtils.damp(rig.position.x, rig.desiredPos.x, lambda, dt);
       rig.position.y = MathUtils.damp(rig.position.y, rig.desiredPos.y, lambda, dt);
@@ -144,10 +127,10 @@ export function CameraRig() {
       rig.look.z = MathUtils.damp(rig.look.z, rig.desiredLook.z, lambda + 1, dt);
     }
 
-    // A longer lens on the room makes it read like a little diorama.
-    const fov = inRoom ? 30 : 42;
-    if (camera.fov !== fov) {
-      camera.fov = fov;
+    // A longer lens on the room makes it read like a little diorama; it eases in as you fly over.
+    rig.fov = MathUtils.damp(rig.fov, inRoom ? 30 : 42, 3, dt);
+    if (Math.abs(camera.fov - rig.fov) > 0.01) {
+      camera.fov = rig.fov;
       camera.updateProjectionMatrix();
     }
 
@@ -159,11 +142,16 @@ export function CameraRig() {
       rig.position.z
     );
     camera.lookAt(rig.look);
-    const fwdX = rig.look.x - rig.position.x;
-    const fwdZ = rig.look.z - rig.position.z;
-    const len = Math.hypot(fwdX, fwdZ) || 1;
-    fx.camRight.x = -fwdZ / len;
-    fx.camRight.z = fwdX / len;
+    // Where the camera is heading, not where it lags: keeps movement steady while it swings round.
+    const fwdX = rig.desiredLook.x - rig.desiredPos.x;
+    const fwdZ = rig.desiredLook.z - rig.desiredPos.z;
+    const len = Math.hypot(fwdX, fwdZ);
+    if (len > 0.01) {
+      fx.camForward.x = fwdX / len;
+      fx.camForward.z = fwdZ / len;
+      fx.camRight.x = -fwdZ / len;
+      fx.camRight.z = fwdX / len;
+    }
   });
 
   return null;

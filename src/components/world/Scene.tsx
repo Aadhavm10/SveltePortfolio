@@ -3,6 +3,7 @@ import { Ambience } from './ambience';
 import { Ball } from './Ball';
 import { StaticBatch } from './env/batch';
 import { Details } from './env/Details';
+import { Playground } from './env/Playground';
 import { Dust } from './env/Dust';
 import { Scatter, Trees } from './env/Foliage';
 import { Grass } from './env/Grass';
@@ -53,6 +54,7 @@ export function Scene() {
       <Markers />
       <Player />
       <Ball />
+      <Playground />
       <Ambience />
     </>
   );

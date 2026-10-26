@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { PMREMGenerator, type DirectionalLight } from 'three';
+import { Color, MathUtils, PMREMGenerator, type DirectionalLight, type HemisphereLight } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { bodies, world } from '../store';
+import { bodies, fx, world } from '../store';
 import { GOLDEN, SUN_DIR } from './palette';
 
 const SHADOW_EXTENT = 28;
@@ -12,6 +12,9 @@ const SHADOW_EXTENT_LOW = 20;
 /** Low warm sun (its shadow camera follows the player), a sky fill and a soft front fill. */
 export function Lights() {
   const sun = useRef<DirectionalLight>(null);
+  const hemi = useRef<HemisphereLight>(null);
+  const fill = useRef<DirectionalLight>(null);
+  const tones = useMemo(() => ({ sky: new Color(GOLDEN.hemiSky), duskSky: new Color('#7f78c0') }), []);
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
 
@@ -31,9 +34,20 @@ export function Lights() {
   const mapSize = low ? 1024 : 2048;
   const extent = low ? SHADOW_EXTENT_LOW : SHADOW_EXTENT;
 
-  useFrame(({ camera }) => {
+  useFrame(({ camera }, delta) => {
+    // Dusk falls while you're at my room, so its lamps glow.
+    fx.evening = MathUtils.damp(fx.evening, world.get().station === 'room' ? 1 : 0, 1.6, Math.min(delta, 0.1));
+    const e = fx.evening;
+    if (hemi.current) {
+      hemi.current.intensity = MathUtils.lerp(1.45, 0.42, e);
+      hemi.current.color.copy(tones.sky).lerp(tones.duskSky, e);
+    }
+    if (fill.current) fill.current.intensity = MathUtils.lerp(0.8, 0.1, e);
+    // Reflections would light the room's insides evenly; let them fade so the lamps carry it.
+    scene.environmentIntensity = MathUtils.lerp(0.35, 0.06, e);
     const light = sun.current;
     if (!light) return;
+    light.intensity = MathUtils.lerp(4.4, 1.8, e);
     const p = bodies.player?.translation();
     const x = p?.x ?? camera.position.x;
     const z = p ? p.z - 4 : camera.position.z - 12;
@@ -44,9 +58,9 @@ export function Lights() {
 
   return (
     <>
-      <hemisphereLight args={[GOLDEN.hemiSky, GOLDEN.hemiGround, 1.45]} />
+      <hemisphereLight ref={hemi} args={[GOLDEN.hemiSky, GOLDEN.hemiGround, 1.45]} />
       {/* Soft fill from the camera's side so faces and screens aren't lost against the low sun. */}
-      <directionalLight color="#ffe3c8" intensity={0.8} position={[12, 14, 30]} />
+      <directionalLight ref={fill} color="#ffe3c8" intensity={0.8} position={[12, 14, 30]} />
       <directionalLight
         ref={sun}
         castShadow

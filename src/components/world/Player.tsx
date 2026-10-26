@@ -130,7 +130,11 @@ export function Player() {
     const celebrating = pose.celebrate >= 0 && pose.celebrate < 1.6;
     const countdown = challenge?.phase === 'countdown' || challenge?.phase === 'done';
     const locked = !started || mapOpen || (mode === 'station' && !posing) || celebrating || countdown;
-    const move = locked ? NO_MOVE : readMove();
+    const keys = locked ? NO_MOVE : readMove();
+    // Up/down/left/right follow the camera (in free play it faces north, so nothing changes there).
+    const f = fx.camForward;
+    const r = fx.camRight;
+    const move = { ...keys, x: r.x * keys.x - f.x * keys.z, z: r.z * keys.x - f.z * keys.z };
     if (move.amount > 0 && !world.get().moved) world.set({ moved: true });
     const hoops = mode === 'basketball';
 
@@ -157,7 +161,7 @@ export function Player() {
       // Left/right swing the shot left/right as seen from the camera.
       const r = fx.camRight;
       const toRight = Math.cos(s.yaw) * r.x - Math.sin(s.yaw) * r.z < 0 ? -1 : 1;
-      s.aimOffset = MathUtils.clamp(s.aimOffset + move.x * AIM_TURN * dt * toRight, s.aimMin, s.aimMax);
+      s.aimOffset = MathUtils.clamp(s.aimOffset + keys.x * AIM_TURN * dt * toRight, s.aimMin, s.aimMax);
       s.yaw = dampAngle(s.yaw, s.aimBase + s.aimOffset, 14, dt);
     } else if (move.amount > 0.05) s.yaw = dampAngle(s.yaw, Math.atan2(move.x, move.z), TURN, dt);
     s.fx = Math.sin(s.yaw);

@@ -131,11 +131,11 @@ function stump(): Part[] {
   return [cyl(0.42, 0.5, 0.5, '#8a5d3b', [0, 0.25, 0], undefined, 9), cyl(0.38, 0.38, 0.02, '#d9b48a', [0, 0.51, 0], undefined, 9), ball(0.12, '#6fa843', [0.35, 0.1, 0.25], [1, 0.6, 1], 0)];
 }
 
-function bin(): Part[] {
+export function bin(): Part[] {
   return [cyl(0.3, 0.26, 0.85, '#5f9a5a', [0, 0.43, 0], undefined, 12), cyl(0.33, 0.33, 0.07, '#4a7a46', [0, 0.88, 0], undefined, 12), box(0.14, 0.05, 0.03, '#fffaee', [0, 0.6, 0.29])];
 }
 
-function cone(): Part[] {
+export function cone(): Part[] {
   return [box(0.36, 0.03, 0.36, '#ff8a3d', [0, 0.015, 0]), cyl(0.02, 0.13, 0.32, '#ff8a3d', [0, 0.18, 0], undefined, 10), cyl(0.07, 0.085, 0.05, '#fffaee', [0, 0.2, 0], undefined, 10)];
 }
 
@@ -490,8 +490,8 @@ export function Details() {
       {/* Flower beds */}
       <Prop position={[8.5, 0, 7.2]} parts={() => flowerBed(2.4, 1, 1)} />
       <Prop position={[-12.5, 0, 11.5]} rotation={0.15} parts={() => flowerBed(2.4, 1, 2)} />
-      <Prop position={[PROPS.cottage.x - 2.6, 0, PROPS.cottage.z + 2.95]} parts={() => flowerBed(1.4, 0.6, 3)} />
-      <Prop position={[PROPS.cottage.x + 2.6, 0, PROPS.cottage.z + 2.95]} parts={() => flowerBed(1.4, 0.6, 4)} />
+      <Prop position={[PROPS.room.x - 2.4, 0, PROPS.room.z + 4.6]} rotation={0.3} parts={() => flowerBed(1.4, 0.6, 3)} />
+      <Prop position={[PROPS.room.x + 2.6, 0, PROPS.room.z + 4.2]} rotation={-0.3} parts={() => flowerBed(1.4, 0.6, 4)} />
       <Prop position={[PROPS.globe.x + 3.2, 0, PROPS.globe.z + 1.2]} rotation={0.6} parts={() => flowerBed(1.6, 0.8, 5)} />
       {/* Mushrooms, logs and stumps in the grass */}
       {(
@@ -519,22 +519,6 @@ export function Details() {
         ] as const
       ).map(([x, z], i) => (
         <Prop key={`s${i}`} position={[x, 0, z]} rotation={i} parts={stump} />
-      ))}
-      {/* Bins by the paths */}
-      {(
-        [
-          [14.6, -3.6],
-          [-14.4, 8.4],
-          [33.5, 19.4],
-          [-20.5, -30.5],
-          [8, -24.5]
-        ] as const
-      ).map(([x, z], i) => (
-        <Prop key={`b${i}`} position={[x, 0, z]} parts={bin} />
-      ))}
-      {/* Training cones beside the pitch */}
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <Prop key={`c${i}`} position={[-18 - (i % 2) * 1.6, 0, -10 - i * 1.3]} parts={cone} shadow={false} />
       ))}
       {/* Fair: welcome sign with bunting, and a bike leaning by the street */}
       <group position={fairSign}>

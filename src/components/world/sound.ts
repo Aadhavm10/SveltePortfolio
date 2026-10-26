@@ -255,3 +255,22 @@ export function playBlip(freq: number) {
   if (!ctx || muted) return;
   tone(ctx.currentTime, freq, 0.045, 0.07, 'square');
 }
+
+/** Wood or plastic knocking together: pins, dominoes, cans. */
+export function playClack(strength: number) {
+  if (!ctx || muted) return;
+  const t = ctx.currentTime;
+  const s = Math.min(1, strength);
+  tone(t, 900 + Math.random() * 500, 0.03 + s * 0.06, 0.05, 'triangle', 500);
+  noiseBurst(t, 'highpass', 2200, 0.8, 0.02 + s * 0.05, 0.002, 0.03);
+}
+
+/** A crate splintering apart. */
+export function playCrack() {
+  if (!ctx || muted) return;
+  const t = ctx.currentTime;
+  thump(t, 140, 50, 0.35, 0.16);
+  noiseBurst(t, 'bandpass', 1500, 0.8, 0.35, 0.002, 0.12);
+  noiseBurst(t + 0.04, 'bandpass', 2600, 1.2, 0.2, 0.002, 0.08);
+  tone(t + 0.02, 420, 0.06, 0.12, 'square', 180);
+}

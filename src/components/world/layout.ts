@@ -9,7 +9,7 @@ import { projects } from '../../data/portfolio';
  *                [letters]
  *   court  ·  [====== field ======]  · laptop + monitor
  *       photo ·    spawn
- *    cottage          classic · [fair stalls ......]
+ *    my room          classic · [fair stalls ......]
  */
 
 export const BOUNDS = { minX: -56, maxX: 52, minZ: -56, maxZ: 26 };
@@ -93,12 +93,34 @@ export const PROPS = {
   psp: { x: 31, z: -35 },
   globe: { x: -24, z: -36.5 },
   camera: { x: -17.5, z: 2.4 },
-  cottage: { x: -37, z: 17.5 },
+  /** My room sits out in the park on a plinth, turned so its two decorated walls face the path. */
+  room: { x: -37.5, z: 16.5, yaw: -Math.PI / 4 },
   scoreboard: { x: 18.5, z: -10 },
   ballRack: { x: -26.5, z: -7 },
   classicSign: { x: 9, z: 15 },
   signpost: { x: -5.2, z: 6.8 },
   letters: { x: 0, z: -30 }
+};
+
+/** Things to knock over (see env/Playground). */
+export const TOYS = {
+  bowling: { x: 19.5, z: -0.7, length: 6.6 },
+  dominoes: { from: [-1.5, 9.2] as [number, number], via: [-5.5, 13] as [number, number], to: [-10, 12.2] as [number, number] },
+  crates: { x: 21, z: 21.5 },
+  cans: { x: 30.5, z: 21.8 },
+  barrels: { x: -36.7, z: -27.7 },
+  beachBalls: [
+    [-20, 0.5],
+    [12.5, 9.5]
+  ] as [number, number][],
+  cones: [0, 1, 2, 3, 4, 5].map((i) => [-18 - (i % 2) * 1.6, -10 - i * 1.3] as [number, number]),
+  bins: [
+    [14.6, -3.6],
+    [-14.4, 8.4],
+    [33.5, 19.4],
+    [-20.5, -30.5],
+    [8, -24.5]
+  ] as [number, number][]
 };
 
 /** The project fair: one stall per project along a little street, fronts facing south. */
@@ -184,8 +206,8 @@ export const STATIONS: Station[] = [
     name: 'My room',
     icon: 'house',
     label: 'Step inside my room',
-    x: PROPS.cottage.x,
-    z: PROPS.cottage.z + 4.6,
+    x: PROPS.room.x,
+    z: PROPS.room.z + 4.4,
     radius: 2.2,
     promptY: 2.4,
     color: '#f6b8c9'
@@ -240,8 +262,8 @@ export const PATHS: [number, number][][] = [
   [[-15, -22], [-19, -27], [-23, -31.5]],
   // Down to the fair street, which runs east past every stall
   [[2, 5], [5, 10], [10, 14.4], [16, 15.2], [32, 15.4], [49, 15.1]],
-  // West past the photo booth, over the south brook's bridge to the cottage
-  [[-15, 3], [-24, 6.2], [-31, 8.6], [-35.3, 11.3], [-36.4, 16], [-37, 21.6]]
+  // West past the photo booth, over the south brook's bridge and round to the front of my room
+  [[-15, 3], [-24, 6.2], [-31, 8.6], [-35.3, 11.3], [-32.8, 14.8], [-33.2, 19.5], [-37.5, 21.9]]
 ];
 
 /** Shallow streams (you can wade through them); each is a polyline of control points. */
@@ -279,8 +301,16 @@ export const CLEARINGS = [
   // Keep the view of the globe from its path clear of trees.
   { x: PROPS.globe.x, z: PROPS.globe.z + 8, r: 5 },
   { x: PROPS.camera.x, z: PROPS.camera.z + 1, r: 3 },
-  { x: PROPS.cottage.x, z: PROPS.cottage.z + 1, r: 7.5 },
+  // Wide, so trees never block the camera circling the room
+  { x: PROPS.room.x, z: PROPS.room.z, r: 8.5 },
   ...projects.map((_, i) => ({ x: stallX(i), z: FAIR.z, r: 3.8 })),
+  // Things to knock over
+  { x: TOYS.bowling.x, z: TOYS.bowling.z, r: 4.5 },
+  { x: -5.5, z: 11.2, r: 4.8 },
+  { x: TOYS.crates.x, z: TOYS.crates.z, r: 3 },
+  { x: TOYS.cans.x, z: TOYS.cans.z, r: 2.2 },
+  { x: TOYS.barrels.x, z: TOYS.barrels.z, r: 2 },
+  ...TOYS.beachBalls.map(([x, z]) => ({ x, z, r: 1.8 })),
   // Little scenes between the places (see env/Details)
   { x: -42.5, z: -27, r: 4.5 },
   { x: -29.5, z: 19.5, r: 3.2 },

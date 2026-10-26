@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, type MutableRefObject, type ReactNode, type RefObject } from 'react';
-import { createPortal, useFrame, useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
+import { CuboidCollider, RigidBody } from '@react-three/rapier';
 import { ContactShadows, Html, RoundedBox } from '@react-three/drei';
 import {
   AdditiveBlending,
@@ -9,7 +10,7 @@ import {
   Group,
   MathUtils,
   MeshStandardMaterial,
-  Scene,
+  Vector3,
   type Camera,
   type PointLight,
   type Texture
@@ -17,10 +18,10 @@ import {
 import { roomHotspots, type RoomHotspot } from '../../../data/portfolio';
 import { StaticBatch } from '../env/batch';
 import { seeded } from '../env/palette';
-import { useWorld, world } from '../store';
+import { PROPS } from '../layout';
+import { fx, useWorld, world } from '../store';
 import { canvasTexture } from '../textures';
 import {
-  backdropTexture,
   carpetTexture,
   codeTexture,
   drawMatch,
@@ -36,8 +37,9 @@ import {
 } from './roomArt';
 
 /**
- * My room as a little cutaway diorama, laid out like the real one. It lives in its own scene:
- * walking into the cottage swaps the park out for it, and you orbit around it from outside.
+ * My room as a little cutaway diorama, laid out like the real one, standing out in the park on a
+ * plinth. The walls between the camera and the room hide as you walk past; walk up and press Enter
+ * to circle round it while dusk falls and the lamps come up.
  *
  *   A (desk wall, west):  hallway + door · Kallax and desk · floor lamp · record player (corner)
  *   B (bed wall, north):  lounge chair under the scarves · nightstand · bed under the jerseys
@@ -55,10 +57,29 @@ const T = 0.12;
 const HALL = { x0: X0, x1: -1.0, z1: 2.7 };
 const WINDOW = { z0: -0.55, z1: 0.55, y0: 0.85, y1: 2.0 };
 
-/** What the camera circles around. */
-export const ROOM_TARGET = { x: 0, y: 0.8, z: 0.2 };
+/** The plinth lifts the room this far off the grass. */
+const LIFT = 0.3;
+const { x: RX, z: RZ, yaw: RYAW } = PROPS.room;
+const COS = Math.cos(RYAW);
+const SIN = Math.sin(RYAW);
 
-const START = { yaw: Math.PI / 4, pitch: 0.6, dist: 11.5 };
+/** Room space to world space (the room is turned by RYAW about its centre). */
+function toWorld(x: number, y: number, z: number, out: Vector3) {
+  return out.set(RX + x * COS + z * SIN, y + LIFT, RZ - x * SIN + z * COS);
+}
+
+/** What the camera circles around, in room space. */
+const TARGET = { x: 0, y: 0.9, z: 0.3 };
+
+const START = { yaw: Math.PI / 4, pitch: 0.62, dist: 11.5 };
+
+/** Where the camera should be (and look) to circle the room from the current orbit angles. */
+export function roomOrbit(position: Vector3, look: Vector3, distScale = 1) {
+  const cp = Math.cos(roomView.pitch);
+  const d = roomView.dist * distScale;
+  toWorld(TARGET.x, TARGET.y, TARGET.z, look);
+  toWorld(TARGET.x + Math.sin(roomView.yaw) * cp * d, TARGET.y + Math.sin(roomView.pitch) * d, TARGET.z + Math.cos(roomView.yaw) * cp * d, position);
+}
 
 /** Orbit around the room: drag, the arrow keys or the wheel. */
 export const roomView = {
@@ -72,7 +93,7 @@ export const roomView = {
 
 export function turnRoom(dYaw: number, dPitch: number) {
   roomView.targetYaw += dYaw;
-  roomView.targetPitch = MathUtils.clamp(roomView.targetPitch + dPitch, 0.28, 1.2);
+  roomView.targetPitch = MathUtils.clamp(roomView.targetPitch + dPitch, 0.42, 1.2);
 }
 
 export function zoomRoom(factor: number) {
@@ -101,9 +122,14 @@ const WALLS: Record<WallId, { point: [number, number]; normal: [number, number] 
 const cut: Record<WallId, boolean> = { A: false, B: false, C: false, D: false };
 
 function updateCutaway(camera: Camera) {
+  // The camera in room space.
+  const dx = camera.position.x - RX;
+  const dz = camera.position.z - RZ;
+  const cx = dx * COS - dz * SIN;
+  const cz = dx * SIN + dz * COS;
   for (const id of WALL_IDS) {
     const { point, normal } = WALLS[id];
-    cut[id] = (camera.position.x - point[0]) * normal[0] + (camera.position.z - point[1]) * normal[1] < 0;
+    cut[id] = (cx - point[0]) * normal[0] + (cz - point[1]) * normal[1] < 0;
   }
 }
 
@@ -236,14 +262,14 @@ function Floor({ carpet }: { carpet: Texture }) {
   );
   return (
     <>
-      {/* The slab the room sits on */}
-      <mesh position={[0, -0.09, 0]} receiveShadow>
-        <boxGeometry args={[X1 - X0 + T * 2, 0.18, Z1 - Z0 + T * 2]} />
-        <meshStandardMaterial color="#2f2a3a" roughness={0.9} />
+      {/* The plinth the room stands on, with a lip of wooden deck */}
+      <mesh position={[0, -LIFT / 2, (HALL.z1 - Z1) / 2]} {...SHADOW}>
+        <boxGeometry args={[X1 - X0 + T * 2 + 0.5, LIFT, HALL.z1 - Z0 + T * 2 + 0.5]} />
+        <meshStandardMaterial color="#3a3346" roughness={0.9} />
       </mesh>
-      <mesh position={[(HALL.x0 + HALL.x1) / 2, -0.09, (Z1 + HALL.z1) / 2 + T / 2]} receiveShadow>
-        <boxGeometry args={[HALL.x1 - HALL.x0 + T * 2, 0.18, HALL.z1 - Z1 + T]} />
-        <meshStandardMaterial color="#2f2a3a" roughness={0.9} />
+      <mesh position={[0, -0.02, (HALL.z1 - Z1) / 2]} receiveShadow>
+        <boxGeometry args={[X1 - X0 + T * 2 + 0.56, 0.05, HALL.z1 - Z0 + T * 2 + 0.56]} />
+        <meshStandardMaterial color="#b98656" roughness={0.8} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]} receiveShadow>
         <planeGeometry args={[X1 - X0, Z1 - Z0]} />
@@ -893,40 +919,26 @@ function Motes() {
   );
 }
 
+/** Lamps and the TV. They glow softly by day and come up as dusk falls while you're at the room. */
 function RoomLights() {
   const low = world.get().quality === 'low';
+  const lamp = useRef<PointLight>(null);
+  const bedside = useRef<PointLight>(null);
   const tv = useRef<PointLight>(null);
-  const candle = useRef<PointLight>(null);
+  const at = useMemo(() => ({ lamp: toWorld(X0 + 0.25, 1.75, -0.38, new Vector3()), bedside: toWorld(-0.26, 0.85, Z0 + 0.25, new Vector3()), tv: toWorld(1.3, 0.95, Z1 - 0.55, new Vector3()) }), []);
   useFrame((state) => {
     const t = state.clock.elapsedTime;
-    if (tv.current) tv.current.intensity = 2.2 + Math.sin(t * 3.1) * 0.35 + Math.sin(t * 7.3) * 0.2;
-    if (candle.current) candle.current.intensity = 0.9 + Math.sin(t * 11) * 0.12 + Math.sin(t * 17) * 0.08;
+    const k = 0.35 + fx.evening * 0.65;
+    if (lamp.current) lamp.current.intensity = 5 * k;
+    if (bedside.current) bedside.current.intensity = 2 * k;
+    if (tv.current) tv.current.intensity = (2.4 + Math.sin(t * 3.1) * 0.35 + Math.sin(t * 7.3) * 0.2) * k;
   });
+  // Lights are world-wide in three.js, so they live outside the room's turned group and keep a fixed count.
   return (
     <>
-      <hemisphereLight args={['#8d88cc', '#3d2e38', 1.1]} />
-      {/* Low sun through the window */}
-      <directionalLight
-        color="#ffb26a"
-        intensity={4}
-        position={[7, 4.4, 1.4]}
-        castShadow
-        shadow-mapSize={low ? [1024, 1024] : [2048, 2048]}
-        shadow-camera-left={-6}
-        shadow-camera-right={6}
-        shadow-camera-top={6}
-        shadow-camera-bottom={-6}
-        shadow-camera-near={1}
-        shadow-camera-far={18}
-        shadow-bias={-0.0004}
-        shadow-normalBias={0.02}
-      />
-      {/* Floor lamp, nightstand lamp, TV and (on fast devices) the monitor and candle */}
-      <pointLight position={[X0 + 0.25, 1.75, -0.38]} color="#ffbf7a" intensity={4.5} distance={6} decay={2} />
-      <pointLight position={[-0.26, 0.85, Z0 + 0.25]} color="#ffcf96" intensity={1.8} distance={3.5} decay={2} />
-      <pointLight ref={tv} position={[1.3, 0.95, Z1 - 0.55]} color="#9d8cff" intensity={2.2} distance={4} decay={2} />
-      {!low && <pointLight position={[X0 + 0.5, 1.15, 0.62]} color="#86a8ff" intensity={1.2} distance={2.8} decay={2} />}
-      {!low && <pointLight ref={candle} position={[X0 + 0.48, 0.92, 0.12]} color="#ff9a4a" intensity={0.9} distance={2} decay={2} />}
+      <pointLight ref={lamp} position={at.lamp} color="#ffbf7a" intensity={2} distance={6} decay={2} />
+      {!low && <pointLight ref={bedside} position={at.bedside} color="#ffcf96" intensity={1} distance={3.5} decay={2} />}
+      {!low && <pointLight ref={tv} position={at.tv} color="#9d8cff" intensity={1} distance={4} decay={2} />}
     </>
   );
 }
@@ -974,9 +986,12 @@ function RoomContents() {
     []
   );
   const lastTv = useRef(0);
+  const scratch = useMemo(() => new Vector3(), []);
 
   useFrame((state, delta) => {
-    if (world.get().station !== 'room') return;
+    // Only bother when the camera is close enough to see in.
+    const near = state.camera.position.distanceToSquared(toWorld(0, 0, 0, scratch)) < 50 * 50;
+    if (!near) return;
     updateCutaway(state.camera);
     for (const id of WALL_IDS) {
       const show = !cut[id];
@@ -1002,7 +1017,6 @@ function RoomContents() {
 
   return (
     <>
-      <RoomLights />
       <Floor carpet={textures.carpet} />
       <Walls mats={mats} />
       <StaticBatch>
@@ -1019,20 +1033,11 @@ function RoomContents() {
   );
 }
 
-/** Mounts the room in its own scene, and renders whichever scene you're in. */
+/** My room, standing in the park. */
 export function Room(): ReactNode {
-  const roomScene = useMemo(() => {
-    const scene = new Scene();
-    scene.background = backdropTexture();
-    return scene;
-  }, []);
   const gl = useThree((s) => s.gl);
 
-  useFrame(({ gl: renderer, scene, camera }) => {
-    renderer.render(world.get().station === 'room' ? roomScene : scene, camera);
-  }, 1);
-
-  // Drag to orbit and scroll to zoom while inside.
+  // Drag to circle round and scroll to zoom while you're at the room.
   useEffect(() => {
     const canvas = gl.domElement;
     let last: { x: number; y: number } | null = null;
@@ -1071,5 +1076,16 @@ export function Room(): ReactNode {
     roomView.dist = MathUtils.damp(roomView.dist, roomView.targetDist, 7, delta);
   });
 
-  return createPortal(<RoomContents />, roomScene);
+  return (
+    <>
+      <group position={[RX, LIFT, RZ]} rotation={[0, RYAW, 0]}>
+        <RoomContents />
+        {/* You walk round the room, not into it */}
+        <RigidBody type="fixed" colliders={false}>
+          <CuboidCollider args={[(X1 - X0) / 2 + T + 0.25, 1.4, (HALL.z1 - Z0) / 2 + T + 0.25]} position={[0, 1.1, (HALL.z1 + Z0) / 2]} />
+        </RigidBody>
+      </group>
+      <RoomLights />
+    </>
+  );
 }

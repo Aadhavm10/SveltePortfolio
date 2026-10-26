@@ -54,8 +54,6 @@ export interface WorldState {
   gallery: number;
   /** Photo booth: the last polaroid (an object URL) while it's being shown. */
   polaroid: string | null;
-  /** performance.now() of the last walk into or out of the room, for the fade. */
-  roomFadeAt: number;
   challenge: Challenge | null;
   /** Free-play goal celebration. */
   goalAt: number;
@@ -79,7 +77,6 @@ let state: WorldState = {
   place: 0,
   gallery: -1,
   polaroid: null,
-  roomFadeAt: 0,
   challenge: null,
   goalAt: 0
 };
@@ -129,8 +126,11 @@ export const fx = {
   lastKick: 0,
   /** Player facing (unit vector on the ground), for systems that place things in front of them. */
   facing: { x: 0, z: -1 },
-  /** The camera's right-hand direction on the ground, so left/right input can follow the view. */
+  /** The camera's right-hand and forward directions on the ground, so movement keys follow the view. */
   camRight: { x: 1, z: 0 },
+  camForward: { x: 0, z: -1 },
+  /** 0 by day, easing to 1 while you're at my room: dusk falls and its lamps come up. */
+  evening: 0,
   /** Where a charging soccer shot will land on the goal mouth (shown as a target ring). */
   aim: { x: 0, y: 0, visible: false },
   /** Set to ask the photo booth to take a picture on the next frame. */

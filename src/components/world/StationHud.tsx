@@ -1,10 +1,11 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Camera, Download, ExternalLink, Images, RotateCcw } from 'lucide-react';
-import { experience, places, projects } from '../../data/portfolio';
+import { experience, projects } from '../../data/portfolio';
 import { arrow, back, closeStation, interact, moveStall, openGallery, stallIndex, stepGallery, turnPage } from './actions';
 import { arcade, arcadeEnter, arcadePress, GAMES } from './games/arcade';
 import { stationById, type StationId } from './layout';
 import { takePhoto } from './stations/Capture';
+import { visited } from './stations/countries';
 import { stepPlace } from './stations/Globe';
 import { PSP_MENU } from './stations/pspMenu';
 import { useWorld, world } from './store';
@@ -145,53 +146,66 @@ function ArcadeBar() {
   );
 }
 
-/** Globe: a card about the selected place, and a full-screen gallery of its photos. */
+/** Globe: a card about the country picked, and a full-screen gallery of its photos. */
 function GlobePanel() {
   const index = useWorld((s) => s.place);
   const gallery = useWorld((s) => s.gallery);
-  const place = places[index];
+  const countries = visited();
+  const place = countries[index];
   if (!place) return null;
+  const trip = place.trip;
+  const extra = place.photos.length - 6;
   return (
     <>
       <aside className="world-place" style={{ '--accent': stationById.globe.color } as CSSProperties} aria-live="polite">
         <p className="world-place-eyebrow">
-          {place.country}
-          {place.placeholder && <span className="world-tag">Sample</span>}
+          {`Been here · ${index + 1} of ${countries.length}`}
+          {trip?.placeholder && <span className="world-tag">Sample</span>}
         </p>
-        <h2 className="world-place-name">{place.name}</h2>
-        <p className="world-place-when">{place.when}</p>
-        <p className="world-place-story">{place.story}</p>
-        {place.photos.length > 0 && (
+        <h2 className="world-place-name">{place.label}</h2>
+        {trip?.when && <p className="world-place-when">{trip.when}</p>}
+        {trip?.story && <p className="world-place-story">{trip.story}</p>}
+        {trip?.spots && trip.spots.length > 0 && (
+          <ul className="world-place-spots">
+            {trip.spots.map((spot) => (
+              <li key={spot}>{spot}</li>
+            ))}
+          </ul>
+        )}
+        {place.photos.length > 0 ? (
           <div className="world-place-thumbs">
-            {place.photos.slice(0, 4).map((src, i) => (
+            {place.photos.slice(0, 6).map((src, i) => (
               <button key={src} type="button" onClick={() => openGallery(i)} aria-label={`Open photo ${i + 1}`}>
                 <img src={src} alt="" loading="lazy" />
+                {i === 5 && extra > 0 && <span className="world-place-more">+{extra}</span>}
               </button>
             ))}
           </div>
+        ) : (
+          <p className="world-place-empty">Photos coming soon.</p>
         )}
         <div className="world-place-actions">
-          <IconButton label="Previous place" onClick={() => stepPlace(-1)}>
+          <IconButton label="Previous country" onClick={() => stepPlace(-1)}>
             <ArrowLeft size={18} />
           </IconButton>
-          <IconButton label="Next place" onClick={() => stepPlace(1)}>
+          <IconButton label="Next country" onClick={() => stepPlace(1)}>
             <ArrowRight size={18} />
           </IconButton>
           {place.photos.length > 0 && (
             <button type="button" className="world-btn world-btn-primary" onClick={() => openGallery()}>
-              <Images size={16} aria-hidden="true" /> Photos <kbd>Enter</kbd>
+              <Images size={16} aria-hidden="true" /> {`${place.photos.length} photo${place.photos.length === 1 ? '' : 's'}`} <kbd>Enter</kbd>
             </button>
           )}
           <BackButton />
         </div>
-        <p className="world-place-hint">Drag the globe to spin it, or tap a pin.</p>
+        <p className="world-place-hint">Drag to spin it. Countries I've been to glow; tap one.</p>
       </aside>
       {gallery >= 0 && (
-        <div className="world-gallery" role="dialog" aria-label={`${place.name} photos`} onClick={back}>
+        <div className="world-gallery" role="dialog" aria-label={`${place.label} photos`} onClick={back}>
           <figure onClick={(e) => e.stopPropagation()}>
-            <img key={gallery} src={place.photos[gallery]} alt={`${place.name}, photo ${gallery + 1}`} />
+            <img key={gallery} src={place.photos[gallery]} alt={`${place.label}, photo ${gallery + 1}`} />
             <figcaption>
-              <strong>{place.name}</strong> {`${gallery + 1} / ${place.photos.length}`}
+              <strong>{place.label}</strong> {`${gallery + 1} / ${place.photos.length}`}
             </figcaption>
           </figure>
           <div className="world-gallery-nav" onClick={(e) => e.stopPropagation()}>
@@ -252,19 +266,17 @@ function PhotoHud() {
 }
 
 function RoomHud() {
-  const fadeAt = useWorld((s) => s.roomFadeAt);
   return (
     <>
-      <div key={fadeAt} className="world-room-fade" aria-hidden="true" />
-      <Bar station="room" title="My room" sub="Drag to spin it around">
-        <IconButton label="Look left" onClick={() => arrow(-1, 0)}>
+      <Bar station="room" title="My room" sub="Drag to walk round it">
+        <IconButton label="Turn left" onClick={() => arrow(-1, 0)}>
           <ArrowLeft size={18} />
         </IconButton>
-        <IconButton label="Look right" onClick={() => arrow(1, 0)}>
+        <IconButton label="Turn right" onClick={() => arrow(1, 0)}>
           <ArrowRight size={18} />
         </IconButton>
         <button type="button" className="world-btn" onClick={() => world.get().station === 'room' && closeStation()}>
-          Head outside <kbd>Esc</kbd>
+          Back <kbd>Esc</kbd>
         </button>
       </Bar>
     </>

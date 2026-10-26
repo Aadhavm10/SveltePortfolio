@@ -25,3 +25,6 @@ pnpm-debug.log*
 
 # vercel
 .vercel
+
+# originals for the globe (run npm run travel-photos)
+travel-photos/

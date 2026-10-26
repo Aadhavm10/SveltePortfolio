@@ -1,6 +1,5 @@
 import { StaticBatch } from '../env/batch';
 import { Capture } from './Capture';
-import { Cottage } from './Cottage';
 import { Desk } from './Desk';
 import { Fair } from './Fair';
 import { PhotoCamera, Psp } from './Gadgets';
@@ -24,9 +23,6 @@ export function Stations() {
       </StaticBatch>
       <StaticBatch>
         <Fair />
-      </StaticBatch>
-      <StaticBatch>
-        <Cottage />
       </StaticBatch>
       <Room />
       <Capture />

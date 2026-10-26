@@ -6,7 +6,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "travel-photos": "node scripts/travel-photos.mjs"
   },
   "dependencies": {
     "@astrojs/react": "^4.4.2",
@@ -33,6 +34,7 @@
     "world-atlas": "^2.0.2"
   },
   "devDependencies": {
-    "@types/three": "^0.182.0"
+    "@types/three": "^0.182.0",
+    "heic-convert": "^2.1.0"
   }
 }

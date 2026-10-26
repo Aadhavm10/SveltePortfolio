@@ -135,11 +135,14 @@ function Terrain() {
       {/* Globe on its stand */}
       <circle cx={PROPS.globe.x} cy={PROPS.globe.z} r={2.1} fill="#8fd0e6" stroke="#d9a441" strokeWidth={0.35} />
       <path d={`M ${PROPS.globe.x - 1.2} ${PROPS.globe.z - 0.6} q 0.8 -1 1.6 -0.2 q 0.4 0.9 -0.4 1.4 q -1 0.3 -1.2 -1.2 z`} fill="#bfe3a0" />
-      {/* Cottage, with its garden */}
-      <g transform={`translate(${PROPS.cottage.x} ${PROPS.cottage.z})`}>
-        <rect x={-2.7} y={-2.1} width={5.4} height={4.2} fill="#fbefd9" />
-        <path d="M -3.2 -2.3 L 3.2 -2.3 L 3.2 0.2 L -3.2 0.2 Z" fill="#d9644a" />
-        <rect x={-0.6} y={1.6} width={1.2} height={0.6} fill="#a8774c" />
+      {/* My room: a little cutaway square on its plinth, with its hallway */}
+      <g transform={`translate(${PROPS.room.x} ${PROPS.room.z}) rotate(${(-PROPS.room.yaw * 180) / Math.PI})`}>
+        <rect x={-2.3} y={-2.2} width={4.6} height={5.4} rx={0.4} fill="#3a3346" />
+        <rect x={-1.9} y={-1.8} width={3.8} height={3.6} fill="#cdb99c" />
+        <rect x={-1.9} y={1.8} width={0.9} height={0.9} fill="#c4966a" />
+        <rect x={-1.9} y={-1.8} width={3.8} height={0.14} fill="#eadfcd" />
+        <rect x={-1.9} y={-1.8} width={0.14} height={4.5} fill="#eadfcd" />
+        <rect x={0.25} y={-1.65} width={1.65} height={2.1} rx={0.15} fill="#f4f1ea" />
       </g>
       <rect x={-31.3} y={18.2} width={3.6} height={2.6} fill="#6b4a33" stroke="#fffaee" strokeWidth={0.2} />
       {/* Campsite */}

@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 export interface Project {
   src: string;
   title: string;
@@ -118,71 +119,53 @@ export const resumeUrl = '/resume.pdf';
 /** The Life photos, resized for the world. */
 export const photos: string[] = Array.from({ length: 36 }, (_, i) => `/world/photos/${String(i + 1).padStart(2, '0')}.jpg`);
 
-export interface Place {
-  id: string;
-  /** City or spot, e.g. "Dallas". */
-  name: string;
+export interface Trip {
+  /** The country, in plain English: "India", "Japan", "United States", "UK"... */
   country: string;
-  lat: number;
-  lng: number;
-  /** When you were there, e.g. "Summer 2023" or "2022 – now". */
+  /** When you went, e.g. "Summer 2023" or "Every December". */
   when: string;
   /** What you did there, a sentence or two. */
   story: string;
-  /** Image paths under /public, e.g. /world/places/tokyo-1.jpg. */
-  photos: string[];
+  /** Cities or spots, shown as little tags. */
+  spots?: string[];
   /** Sample entry until the real one is filled in (shown with a "Sample" tag). */
   placeholder?: boolean;
 }
 
-// TODO(Aadhav): one entry per place you've been. Find lat/lng by right-clicking the spot in Google Maps.
-// The sample entries borrow Life photos just to show how the gallery looks.
-export const places: Place[] = [
+// TODO(Aadhav): one entry per country. Photos don't go here: see travelPhotos below.
+export const trips: Trip[] = [
   {
-    id: 'dallas',
-    name: 'Dallas',
     country: 'United States',
-    lat: 32.9858,
-    lng: -96.7501,
-    when: 'Now',
-    story: 'Studying computer science at UT Dallas. Replace this with what life there is like.',
-    photos: [photos[0], photos[1], photos[2]],
+    when: 'Home now',
+    story: 'Studying computer science at UT Dallas. Rewrite this in your own words.',
+    spots: ['Dallas'],
     placeholder: true
   },
   {
-    id: 'chennai',
-    name: 'Chennai',
     country: 'India',
-    lat: 13.0827,
-    lng: 80.2707,
-    when: 'When you were there',
-    story: 'Sample entry: swap in your hometown or a trip home, and what you did.',
-    photos: [photos[3], photos[4]],
-    placeholder: true
-  },
-  {
-    id: 'new-york',
-    name: 'New York',
-    country: 'United States',
-    lat: 40.7128,
-    lng: -74.006,
-    when: 'When you were there',
-    story: 'Sample entry: a trip, an internship, a hackathon. What happened there?',
-    photos: [photos[5], photos[6], photos[7]],
-    placeholder: true
-  },
-  {
-    id: 'london',
-    name: 'London',
-    country: 'United Kingdom',
-    lat: 51.5072,
-    lng: -0.1276,
-    when: 'When you were there',
-    story: 'Sample entry: maybe a matchday? Add the story and your photos.',
-    photos: [photos[8], photos[9]],
+    when: 'Where it all started',
+    story: 'Sample entry: where home is and what a trip back looks like.',
     placeholder: true
   }
 ];
+
+/**
+ * Photos for each country, found automatically: every image in src/assets/travels/<country>/ shows
+ * up on the globe for that country (in file-name order). A folder for a country that isn't in
+ * `trips` still lights it up. The easy way to add them: drop photos (iPhone HEIC is fine) into
+ * travel-photos/<Country>/ and run `npm run travel-photos`, which resizes them and strips location data.
+ */
+const travelPhotoFiles = import.meta.glob('../assets/travels/*/*.{jpg,jpeg,png,webp,avif,JPG,JPEG,PNG,WEBP}', {
+  eager: true,
+  query: '?url',
+  import: 'default'
+}) as Record<string, string>;
+
+export const travelPhotos: Record<string, string[]> = {};
+for (const path of Object.keys(travelPhotoFiles).sort()) {
+  const folder = path.split('/').slice(-2)[0];
+  (travelPhotos[folder] ??= []).push(travelPhotoFiles[path]);
+}
 
 export interface RoomHotspot {
   /** Which thing in the room it labels (see stations/Room.tsx for where each one sits). */

@@ -12,6 +12,7 @@ import {
   RepeatWrapping,
   Vector3
 } from 'three';
+import { PROPS } from '../layout';
 import { mergeParts } from './merge';
 import { canvasTexture } from '../textures';
 import { PATH_WIDTH, pathCurves, pathPoints } from './mask';
@@ -90,7 +91,10 @@ export function Paths() {
         const p = curve.getPointAt(t);
         const tangent = curve.getTangentAt(t);
         const side = (Math.round(d / 11) + ci) % 2 ? 1 : -1;
-        lamps.push({ x: p.x - tangent.z * side * 1.8, z: p.z + tangent.x * side * 1.8 });
+        const lamp = { x: p.x - tangent.z * side * 1.8, z: p.z + tangent.x * side * 1.8 };
+        // Not on top of my room's plinth.
+        if (Math.hypot(lamp.x - PROPS.room.x, lamp.z - PROPS.room.z) < 4.4) continue;
+        lamps.push(lamp);
       }
     });
     return { geometries, lamps };

@@ -1,9 +1,11 @@
-import { useMemo } from 'react';
-import { CuboidCollider, RigidBody } from '@react-three/rapier';
+import { useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { CuboidCollider, RigidBody, type RapierRigidBody } from '@react-three/rapier';
 import { FontLoader, type FontData } from 'three/examples/jsm/loaders/FontLoader.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 import fontJson from 'three/examples/fonts/helvetiker_bold.typeface.json';
 import { StaticBatch } from '../env/batch';
+import { bodies } from '../store';
 import { canvasTexture, DISPLAY_FONT, FONT } from '../textures';
 import { PALETTE, PROPS, stationById, type StationId } from '../layout';
 
@@ -36,10 +38,32 @@ function NameLetters() {
     });
   }, []);
 
+  // Stand them back up once you've wandered off.
+  const bodiesRef = useRef<(RapierRigidBody | null)[]>([]);
+  const check = useRef(0);
+  useFrame((state) => {
+    if (state.clock.elapsedTime < check.current) return;
+    check.current = state.clock.elapsedTime + 1;
+    const p = bodies.player?.translation();
+    if (!p || Math.hypot(p.x - PROPS.letters.x, p.z - PROPS.letters.z) < 28) return;
+    letters.forEach((l, i) => {
+      const rb = bodiesRef.current[i];
+      if (!rb) return;
+      const home = { x: PROPS.letters.x + l.x, y: l.height / 2 + 0.01, z: PROPS.letters.z };
+      const t = rb.translation();
+      if (Math.hypot(t.x - home.x, t.y - home.y, t.z - home.z) < 0.2) return;
+      rb.setTranslation(home, false);
+      rb.setRotation({ x: 0, y: 0, z: 0, w: 1 }, false);
+      rb.setLinvel({ x: 0, y: 0, z: 0 }, false);
+      rb.setAngvel({ x: 0, y: 0, z: 0 }, false);
+      rb.sleep();
+    });
+  });
+
   return (
     <>
       {letters.map((l, i) => (
-        <RigidBody key={i} colliders="cuboid" position={[PROPS.letters.x + l.x, l.height / 2 + 0.01, PROPS.letters.z]} mass={12} friction={0.8}>
+        <RigidBody key={i} ref={(rb) => void (bodiesRef.current[i] = rb)} colliders="cuboid" position={[PROPS.letters.x + l.x, l.height / 2 + 0.01, PROPS.letters.z]} mass={12} friction={0.8}>
           <mesh geometry={l.geometry} castShadow receiveShadow>
             <meshStandardMaterial color={l.color} roughness={0.45} />
           </mesh>

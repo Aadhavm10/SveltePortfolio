@@ -1,4 +1,4 @@
-import { experience, places, projects } from '../../data/portfolio';
+import { experience, projects } from '../../data/portfolio';
 import { arcadeBack, arcadeEnter, arcadePress } from './games/arcade';
 import { quitChallenge, startChallenge } from './games/challenge';
 import { clearInput } from './input';
@@ -6,6 +6,7 @@ import type { StationId } from './layout';
 import { playClose, playOpen, playTick } from './sound';
 import { takePhoto } from './stations/Capture';
 import { resetRoomView, turnRoom } from './stations/Room';
+import { visited } from './stations/countries';
 import { faceSelectedPlace, stepPlace } from './stations/Globe';
 import { PSP_MENU } from './stations/pspMenu';
 import { world } from './store';
@@ -26,18 +27,16 @@ export function openStation(id: StationId) {
   }
   clearInput();
   playOpen();
-  const extra = id === 'room' ? { roomFadeAt: performance.now() } : {};
-  world.set({ mode: 'station', station: id, page: 0, psp: { col: 0, row: 0 }, gallery: -1, polaroid: null, ...extra });
+  world.set({ mode: 'station', station: id, page: 0, psp: { col: 0, row: 0 }, gallery: -1, polaroid: null });
   if (id === 'globe') faceSelectedPlace();
   if (id === 'room') resetRoomView();
 }
 
 export function closeStation() {
   playClose();
-  const { station, polaroid } = world.get();
+  const { polaroid } = world.get();
   if (polaroid) URL.revokeObjectURL(polaroid);
-  const extra = station === 'room' ? { roomFadeAt: performance.now() } : {};
-  world.set({ mode: 'play', station: null, gallery: -1, polaroid: null, ...extra });
+  world.set({ mode: 'play', station: null, gallery: -1, polaroid: null });
 }
 
 /** Experience pages. */
@@ -56,9 +55,9 @@ export function moveStall(step: number) {
   world.set({ station: `stall-${(i + step + projects.length) % projects.length}` });
 }
 
-/** Photo gallery for the selected place on the globe. */
+/** Photo gallery for the country picked on the globe. */
 export function openGallery(index = 0) {
-  const place = places[world.get().place];
+  const place = visited()[world.get().place];
   if (!place?.photos.length) return;
   playOpen();
   world.set({ gallery: index });
@@ -66,7 +65,7 @@ export function openGallery(index = 0) {
 
 export function stepGallery(step: number) {
   const { gallery, place } = world.get();
-  const count = places[place]?.photos.length ?? 0;
+  const count = visited()[place]?.photos.length ?? 0;
   if (gallery < 0 || !count) return;
   playTick();
   world.set({ gallery: (gallery + step + count) % count });
