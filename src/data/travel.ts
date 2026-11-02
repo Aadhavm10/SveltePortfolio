@@ -1,0 +1,123 @@
+// Shared travel data types + helpers (safe to import on client and server).
+
+export interface Photo {
+  id: string;
+  /** URL of the full-size image (max ~2000px, EXIF stripped). */
+  full: string;
+  /** URL of the grid thumbnail (~600px). */
+  thumb: string;
+  w: number;
+  h: number;
+  /** ISO date the photo was taken, if the file had one. */
+  takenAt?: string;
+  /** Rounded to 0.1° (~11km) so exact locations are never published. */
+  lat?: number;
+  lng?: number;
+  caption?: string;
+  showPin: boolean;
+}
+
+export interface CountryEntry {
+  /** Display name, e.g. "Canada". */
+  name: string;
+  /** Free text, e.g. "August 2024". */
+  when?: string;
+  blurb?: string;
+  color: string;
+  addedAt: string;
+  photos: Photo[];
+}
+
+export interface Manifest {
+  version: 1;
+  updatedAt: string;
+  /** Keyed by ISO 3166-1 numeric id as used by world-atlas, e.g. "124". */
+  countries: Record<string, CountryEntry>;
+}
+
+export const emptyManifest = (): Manifest => ({
+  version: 1,
+  updatedAt: new Date(0).toISOString(),
+  countries: {},
+});
+
+/** Site accent colours (same as the BubbleMenu hovers) + a few extras. */
+export const PALETTE = [
+  '#ff6b6b',
+  '#4ecdc4',
+  '#ffe66d',
+  '#a8e6cf',
+  '#ff8b94',
+  '#b197fc',
+  '#ffa94d',
+  '#74c0fc',
+];
+
+/** "Home" for the travel arcs. */
+export const HOME = { name: 'Dallas', lat: 32.78, lng: -96.8 };
+
+/** Nicer names for world-atlas' abbreviated ones. */
+const DISPLAY_NAMES: Record<string, string> = {
+  '840': 'United States',
+  '826': 'United Kingdom',
+  '036': 'Australia',
+  '214': 'Dominican Republic',
+  '180': 'DR Congo',
+  '140': 'Central African Republic',
+  '070': 'Bosnia and Herzegovina',
+  '728': 'South Sudan',
+  '226': 'Equatorial Guinea',
+  '732': 'Western Sahara',
+  '258': 'French Polynesia',
+  '028': 'Antigua and Barbuda',
+  '670': 'St. Vincent and the Grenadines',
+  '659': 'St. Kitts and Nevis',
+  '090': 'Solomon Islands',
+  '584': 'Marshall Islands',
+  '580': 'Northern Mariana Islands',
+  '850': 'U.S. Virgin Islands',
+  '092': 'British Virgin Islands',
+  '796': 'Turks and Caicos',
+  '136': 'Cayman Islands',
+  '238': 'Falkland Islands',
+  '234': 'Faroe Islands',
+  '184': 'Cook Islands',
+  '612': 'Pitcairn Islands',
+  '876': 'Wallis and Futuna',
+  '666': 'St. Pierre and Miquelon',
+};
+
+const SHORT_NAMES: Record<string, string> = {
+  '840': 'USA',
+  '826': 'UK',
+  '784': 'UAE',
+};
+
+export function displayName(id: string, atlasName: string): string {
+  return DISPLAY_NAMES[id] ?? atlasName;
+}
+
+export function shortName(id: string, name: string): string {
+  return SHORT_NAMES[id] ?? name;
+}
+
+/** Countries in journey order: earliest photo first, then by when they were added. */
+export function orderedCountryIds(m: Manifest): string[] {
+  const firstDate = (c: CountryEntry) => {
+    const dates = c.photos.map((p) => p.takenAt).filter(Boolean) as string[];
+    return dates.length ? dates.sort()[0] : c.addedAt;
+  };
+  return Object.keys(m.countries).sort((a, b) =>
+    firstDate(m.countries[a]).localeCompare(firstDate(m.countries[b]))
+  );
+}
+
+export function photoCount(m: Manifest): number {
+  return Object.values(m.countries).reduce((n, c) => n + c.photos.length, 0);
+}
+
+/** Next palette colour that no visited country uses yet (cycles when all are taken). */
+export function nextColor(m: Manifest): string {
+  const used = new Set(Object.values(m.countries).map((c) => c.color));
+  return PALETTE.find((c) => !used.has(c)) ?? PALETTE[Object.keys(m.countries).length % PALETTE.length];
+}

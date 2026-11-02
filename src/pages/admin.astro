@@ -1,0 +1,39 @@
+---
+// Private photo uploader. Not linked anywhere; protected by ADMIN_PASSWORD.
+import '@fontsource-variable/inter';
+import AdminApp from '../components/admin/AdminApp.svelte';
+import { adminConfigured, isAdmin } from '../lib/server/auth';
+import { storeMode } from '../lib/server/travelStore';
+
+export const prerender = false;
+
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+Astro.response.headers.set('Cache-Control', 'no-store');
+
+const configured = adminConfigured();
+const authed = configured && isAdmin(Astro.cookies);
+const mode = storeMode();
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Travel uploader</title>
+    <style is:global>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html { color-scheme: dark; }
+      body {
+        font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        background: #07080c;
+        color: #fff;
+        min-height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <AdminApp client:only="svelte" {authed} {configured} {mode} />
+  </body>
+</html>

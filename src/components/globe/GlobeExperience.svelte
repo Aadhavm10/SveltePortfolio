@@ -1,0 +1,396 @@
+<script lang="ts">
+  import { onMount, onDestroy } from 'svelte';
+  import CountryPanel from './CountryPanel.svelte';
+  import { loaderControl } from './loaderControl';
+  import { loadWorld } from '../../lib/geo';
+  import {
+    emptyManifest,
+    orderedCountryIds,
+    photoCount,
+    shortName,
+    type Manifest,
+  } from '../../data/travel';
+  import type { GlobeScene } from './scene';
+
+  let container: HTMLDivElement;
+  let canvas: HTMLCanvasElement;
+  let scene: GlobeScene | null = null;
+  let manifest: Manifest = emptyManifest();
+  let ready = false;
+  let noWebGL = false;
+  let mobile = false;
+  let touch = false;
+  let hovered: { id: string; x: number; y: number } | null = null;
+  let selectedId: string | null = null;
+  let destroyed = false;
+
+  $: ids = orderedCountryIds(manifest);
+  $: total = ids.length;
+  $: photos = photoCount(manifest);
+  $: selected = selectedId ? manifest.countries[selectedId] ?? null : null;
+  $: selectedIndex = selectedId ? ids.indexOf(selectedId) : -1;
+  $: hoveredCountry = hovered ? manifest.countries[hovered.id] ?? null : null;
+  $: if (typeof document !== 'undefined') document.body.classList.toggle('globe-panel-open', !!selected);
+
+  function panelInfo() {
+    if (mobile) return { side: 'bottom' as const, size: window.innerHeight * 0.58 };
+    return { side: 'right' as const, size: Math.min(460, window.innerWidth * 0.38) };
+  }
+
+  function select(id: string | null) {
+    if (id && !manifest.countries[id]) id = null;
+    if (id === selectedId) return;
+    if (!id && !selectedId) return;
+    selectedId = id;
+    hovered = null;
+    scene?.select(id, panelInfo());
+  }
+
+  function step(dir: 1 | -1) {
+    if (selectedIndex < 0 || !ids.length) return;
+    select(ids[(selectedIndex + dir + ids.length) % ids.length]);
+  }
+
+  function nameAt(offset: number): string | null {
+    if (selectedIndex < 0 || ids.length < 2) return null;
+    const id = ids[(selectedIndex + offset + ids.length) % ids.length];
+    return manifest.countries[id]?.name ?? null;
+  }
+
+  async function fetchManifest(): Promise<Manifest> {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch('/api/travel', { headers: { accept: 'application/json' } });
+        if (res.ok) return (await res.json()) as Manifest;
+      } catch {
+        /* retry */
+      }
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+    throw new Error('travel manifest unavailable');
+  }
+
+  function onKey(e: KeyboardEvent) {
+    if (e.key === 'Escape' && selectedId) select(null);
+  }
+
+  onMount(() => {
+    mobile = matchMedia('(max-width: 768px)').matches;
+    touch = matchMedia('(pointer: coarse)').matches;
+    const mq = matchMedia('(max-width: 768px)');
+    const onMq = () => (mobile = mq.matches);
+    mq.addEventListener('change', onMq);
+    window.addEventListener('keydown', onKey);
+    init();
+    return () => {
+      mq.removeEventListener('change', onMq);
+      window.removeEventListener('keydown', onKey);
+    };
+  });
+
+  async function init() {
+    const loader = loaderControl();
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let worldP = 0;
+    let modP = 0;
+    let dataP = 0;
+    let buildP = 0;
+    const report = (label?: string) =>
+      loader.progress(worldP * 0.45 + modP * 0.2 + dataP * 0.05 + buildP * 0.3, label);
+
+    const manifestPromise = fetchManifest()
+      .catch(() => {
+        // Show the globe anyway and try again a bit later.
+        setTimeout(async () => {
+          try {
+            const m = await fetchManifest();
+            if (destroyed) return;
+            manifest = m;
+            scene?.setManifest(m);
+          } catch {
+            /* give up quietly */
+          }
+        }, 5000);
+        return emptyManifest();
+      })
+      .then((m) => {
+        dataP = 1;
+        report();
+        return m;
+      });
+    const modulePromise = import('./scene').then((mod) => {
+      modP = 1;
+      report();
+      return mod;
+    });
+    const worldPromise = loadWorld((f) => {
+      worldP = f;
+      report('mapping borders…');
+    });
+
+    try {
+      const [world, m, mod] = await Promise.all([worldPromise, manifestPromise, modulePromise]);
+      if (destroyed) return;
+      manifest = m;
+      report('raising countries…');
+      try {
+        scene = await mod.createGlobeScene({
+          canvas,
+          container,
+          world,
+          manifest: m,
+          reducedMotion,
+          topologyUrl: '/textures/earth-topology.webp',
+          onProgress: (f) => {
+            buildP = f;
+            report();
+          },
+          onHover: (id, x, y) => (hovered = id && !selectedId ? { id, x, y } : null),
+          onSelect: (id) => select(id),
+        });
+        if (destroyed) {
+          scene.dispose();
+          scene = null;
+          return;
+        }
+      } catch (err) {
+        console.error('WebGL globe failed to start', err);
+        noWebGL = true;
+      }
+    } catch (err) {
+      console.error('Globe data failed to load', err);
+      noWebGL = true;
+    }
+
+    await loader.finish();
+    if (destroyed) return;
+    scene?.intro();
+    ready = true;
+  }
+
+  onDestroy(() => {
+    destroyed = true;
+    scene?.dispose();
+    scene = null;
+    if (typeof document !== 'undefined') document.body.classList.remove('globe-panel-open');
+  });
+</script>
+
+<div class="globe-root" bind:this={container}>
+  <canvas bind:this={canvas} class="globe-canvas" aria-label="Interactive globe of countries Aadhav has visited"></canvas>
+
+  {#if noWebGL}
+    <p class="fallback">The 3D globe couldn't start on this device, but you can still browse the trips below.</p>
+  {/if}
+
+  <div class="hero" class:show={ready} class:hidden={!!selected}>
+    <h1>Aadhav Manimurugan</h1>
+    {#if total}
+      <p class="stat">
+        <strong>{total}</strong> {total === 1 ? 'country' : 'countries'} · <strong>{photos}</strong>
+        {photos === 1 ? 'photo' : 'photos'}
+      </p>
+      <div class="chips">
+        {#each ids as id (id)}
+          <button class="chip" style="--c:{manifest.countries[id].color}" on:click={() => select(id)}>
+            <span class="dot"></span>{shortName(id, manifest.countries[id].name)}
+          </button>
+        {/each}
+      </div>
+    {/if}
+    {#if !noWebGL}
+      <p class="hint">drag to spin · {touch ? 'tap' : 'click'} a glowing country</p>
+    {/if}
+  </div>
+
+  {#if hovered && hoveredCountry && !selected}
+    <div class="tip" style="left:{hovered.x}px; top:{hovered.y}px">
+      <span class="dot" style="background:{hoveredCountry.color}; color:{hoveredCountry.color}"></span>
+      {hoveredCountry.name}
+      <span class="muted">· {hoveredCountry.photos.length} {hoveredCountry.photos.length === 1 ? 'photo' : 'photos'} · click to open</span>
+    </div>
+  {/if}
+
+  {#if selected && selectedId}
+    <CountryPanel
+        country={selected}
+        index={selectedIndex}
+        total={ids.length}
+        prevName={nameAt(-1)}
+        nextName={nameAt(1)}
+        {mobile}
+        onClose={() => select(null)}
+        onPrev={() => step(-1)}
+        onNext={() => step(1)}
+      />
+  {/if}
+</div>
+
+<style>
+  .globe-root {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: #030408;
+  }
+
+  .globe-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+    outline: none;
+  }
+
+  .fallback {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(420px, 85vw);
+    text-align: center;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .hero {
+    position: absolute;
+    left: clamp(1.25rem, 4vw, 3rem);
+    bottom: clamp(1.5rem, 5vh, 3rem);
+    max-width: min(560px, 90vw);
+    color: #fff;
+    z-index: 10;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity 0.8s ease 0.6s, transform 0.8s ease 0.6s;
+  }
+
+  .hero.show {
+    opacity: 1;
+    transform: none;
+  }
+
+  .hero.show.hidden {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.4rem, 5.2vw, 4rem);
+    font-weight: 900;
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    text-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
+    max-width: 9.5em;
+  }
+
+  .stat {
+    margin-top: 16px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .stat strong {
+    color: #fff;
+  }
+
+  .chips {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    pointer-events: auto;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, transform 0.2s;
+  }
+
+  .chip:hover,
+  .chip:focus-visible {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: var(--c);
+    transform: translateY(-1px);
+  }
+
+  .chip .dot {
+    background: var(--c);
+    color: var(--c);
+  }
+
+  .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 10px currentColor;
+    flex-shrink: 0;
+  }
+
+  .hint {
+    margin-top: 14px;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .tip {
+    position: fixed;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    padding: 9px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    background: rgba(10, 14, 24, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    transform: translate(16px, -130%);
+    pointer-events: none;
+  }
+
+  .tip .muted {
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  :global(body.globe-panel-open .credit) {
+    opacity: 0;
+  }
+
+  @media (max-width: 768px) {
+    .hero h1 {
+      font-size: clamp(2rem, 9vw, 2.6rem);
+    }
+    .chip {
+      padding: 7px 12px;
+      font-size: 13px;
+    }
+  }
+</style>
