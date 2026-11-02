@@ -22,11 +22,13 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import ConicPolygonGeometry from 'three-conic-polygon-geometry';
 import { geoArea } from 'd3-geo';
 import type { Position } from 'geojson';
-import { countryFocus, latLngToVector3, type World } from '../../lib/geo';
+import { latLngToVector3, regionFocus, type World } from '../../lib/geo';
 import { HOME, type Manifest } from '../../data/travel';
 import { linesToPositions } from './globeBody';
 
 export const ALTITUDE = 0.025;
+/** Caps stay below the bloom threshold (0.62) even at the top of the pulse; only the white outline blooms. */
+const MAX_LUMINANCE = 0.36;
 const R0 = 1.0;
 const R1 = 1.0 + ALTITUDE;
 
@@ -127,7 +129,7 @@ function buildCountry(
   pinCoords: { lat: number; lng: number }[],
   pixelRatio: number
 ): VisitedCountry | null {
-  const country = world.countries.get(id);
+  const country = world.regions.get(id);
   if (!country) return null;
   const polygons = keptPolygons(country.polygons);
 
@@ -149,7 +151,11 @@ function buildCountry(
   }
   if (!caps.length) return null;
 
+  // Even out brightness across palette colours: a light yellow would otherwise be far brighter
+  // than red or teal and flare through the bloom when it pulses.
   const color = new Color(colorHex);
+  const lum = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b; // linear luminance
+  color.multiplyScalar(Math.min(1, MAX_LUMINANCE / Math.max(lum, 1e-4)));
   const group = new Group();
   group.userData.countryId = id;
 
@@ -176,7 +182,7 @@ function buildCountry(
   );
   outline.renderOrder = 3;
 
-  const focus = countryFocus(country);
+  const focus = regionFocus(country);
   const ringSize = Math.min(0.2, Math.max(0.07, focus.size * 0.55));
   const ring = new Mesh(
     new PlaneGeometry(ringSize, ringSize),
@@ -332,12 +338,14 @@ export function createVisitedLayer(world: World, manifest: Manifest, pixelRatio:
         // Lift on hover: radial extrusion means scaling outward raises the whole shape.
         c.group.scale.setScalar(1 + c.hover * 0.012);
 
-        const breathe = reducedMotion ? 1 : 0.88 + 0.12 * Math.sin(time * 1.6 + c.phase);
-        const glow = breathe * (1 + 0.45 * c.hover);
+        // Same gentle pulse for every colour: the fill breathes and the outline (which carries the glow) follows.
+        const wave = reducedMotion ? 1 : 0.5 + 0.5 * Math.sin(time * 1.6 + c.phase);
+        const breathe = 0.78 + 0.22 * wave;
+        const glow = breathe * (1 + 0.35 * c.hover);
         c.cap.material.color.copy(c.color).multiplyScalar(glow * (0.35 + 0.65 * c.dim));
         c.cap.material.opacity = 0.5 + 0.44 * c.dim;
         c.side.material.opacity = 0.18 + 0.32 * c.dim;
-        c.outline.material.opacity = 0.25 + 0.6 * c.dim;
+        c.outline.material.opacity = (0.25 + 0.6 * c.dim) * (0.55 + 0.45 * wave);
         c.ring.material.uniforms.time.value = reducedMotion ? 0.25 : time + c.phase;
         c.ring.material.uniforms.opacity.value = 0.9 * c.dim * (selected === c.id ? 0.4 : 1);
         if (c.pins) {

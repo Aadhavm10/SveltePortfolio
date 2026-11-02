@@ -7,6 +7,8 @@
   export let country: CountryEntry;
   export let index = 0;
   export let total = 1;
+  /** e.g. "United States" when the place is a US state. */
+  export let parentName: string | null = null;
   export let prevName: string | null = null;
   export let nextName: string | null = null;
   export let mobile = false;
@@ -37,7 +39,7 @@
   <button class="close" on:click={onClose} aria-label="Close">✕</button>
 
   <div class="scroll" bind:this={scroller}>
-    <p class="kicker">Country {index + 1} of {total}</p>
+    <p class="kicker">{parentName ? `${parentName} · ` : ''}{index + 1} of {total}</p>
     <h2>{country.name}</h2>
     {#if country.when}<p class="when">{country.when}</p>{/if}
     {#if country.blurb}<p class="blurb">{country.blurb}</p>{/if}

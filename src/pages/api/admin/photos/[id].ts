@@ -1,7 +1,7 @@
 // Edit or delete a single photo.
 import type { APIRoute } from 'astro';
 import { guard, json } from '../../../../lib/server/auth';
-import { countryName } from '../../../../lib/server/countryNames';
+import { regionName } from '../../../../lib/server/countryNames';
 import { deleteFiles, StoreNotConfiguredError, updateManifest } from '../../../../lib/server/travelStore';
 import { nextColor, type Manifest, type Photo } from '../../../../data/travel';
 
@@ -59,8 +59,8 @@ export const PATCH: APIRoute = async (ctx) => {
   }
 
   const moveTo = typeof body.countryId === 'string' ? body.countryId : undefined;
-  const moveName = moveTo && /^\d{3}$/.test(moveTo) ? countryName(moveTo) : undefined;
-  if (moveTo && !moveName) return json({ error: 'Pick a valid country.' }, 400);
+  const moveName = moveTo ? regionName(moveTo) : undefined;
+  if (moveTo && !moveName) return json({ error: 'Pick a valid country or US state.' }, 400);
 
   try {
     const { manifest } = await updateManifest((m) => {

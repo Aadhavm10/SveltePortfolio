@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import exifr from 'exifr';
-  import { findCountryAt, loadWorld, type World } from '../../lib/geo';
+  import { findRegionAt, loadWorld, type World } from '../../lib/geo';
   import { orderedCountryIds, PALETTE, type Manifest, type Photo } from '../../data/travel';
 
   export let authed = false;
@@ -52,7 +52,7 @@
   $: needsCountry = queue.filter((q) => q.status === 'ready' && !q.countryId).length;
 
   function nameOf(id: string): string {
-    return manifest?.countries[id]?.name ?? world?.countries.get(id)?.name ?? id;
+    return manifest?.countries[id]?.name ?? world?.regions.get(id)?.name ?? id;
   }
 
   function flash(msg: string) {
@@ -163,7 +163,7 @@
       if (gps && Number.isFinite(gps.latitude) && Number.isFinite(gps.longitude)) {
         item.lat = gps.latitude;
         item.lng = gps.longitude;
-        const hit = world ? findCountryAt(world, gps.latitude, gps.longitude) : null;
+        const hit = world ? findRegionAt(world, gps.latitude, gps.longitude) : null;
         if (hit) {
           item.countryId = hit.id;
           item.detected = true;
@@ -410,7 +410,7 @@
         <input type="file" accept="image/*" multiple on:change={(e) => { addFiles(e.currentTarget.files); e.currentTarget.value = ''; }} />
         <span class="drop-icon">＋</span>
         <span><b>Choose photos</b> or drop them here</span>
-        <span class="muted small">The country is detected from each photo's location. Location data is removed before upload.</span>
+        <span class="muted small">The country (or US state) is detected from each photo's location. Location data is removed before upload.</span>
       </label>
 
       {#if queue.length}
@@ -426,14 +426,17 @@
                 {:else}
                   <div class="q-row">
                     <select bind:value={item.countryId} on:change={() => { item.detected = false; lastCountry = item.countryId; }} disabled={item.status !== 'ready'}>
-                      <option value="" disabled>Choose country…</option>
+                      <option value="" disabled>Choose a country or US state…</option>
                       {#if visitedIds.length}
                         <optgroup label="Visited">
                           {#each visitedIds as id (id)}<option value={id}>{nameOf(id)}</option>{/each}
                         </optgroup>
                       {/if}
-                      <optgroup label="All countries">
-                        {#each world?.list ?? [] as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
+                      <optgroup label="United States (by state)">
+                        {#each world?.states ?? [] as s (s.id)}<option value={s.id}>{s.name}</option>{/each}
+                      </optgroup>
+                      <optgroup label="Countries">
+                        {#each world?.countries ?? [] as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
                       </optgroup>
                     </select>
                     {#if item.detected}<span class="badge ok">📍 detected</span>{:else if item.lat === undefined}<span class="badge">no location</span>{/if}
@@ -466,11 +469,11 @@
     </section>
 
     <section class="card">
-      <h2>Your countries <span class="muted">({visitedIds.length})</span></h2>
+      <h2>Your places <span class="muted">({visitedIds.length})</span></h2>
       {#if !manifest}
         <p class="muted">Loading…</p>
       {:else if !visitedIds.length}
-        <p class="muted">No countries yet. Upload a photo and its country will light up on the globe.</p>
+        <p class="muted">Nothing here yet. Upload a photo and its country or US state will light up on the globe.</p>
       {:else}
         <ul class="countries">
           {#each visitedIds as id (id)}
@@ -524,9 +527,9 @@
                             class="small"
                             value={id}
                             on:change={(e) => patchPhoto(p, { countryId: e.currentTarget.value }, 'Photo moved.')}
-                            aria-label="Move to country"
+                            aria-label="Move to another country or state"
                           >
-                            {#each world?.list ?? [] as wc (wc.id)}<option value={wc.id}>{wc.id === id ? `In ${wc.name}` : `Move to ${wc.name}`}</option>{/each}
+                            {#each [...(world?.states ?? []), ...(world?.countries ?? [])] as wc (wc.id)}<option value={wc.id}>{wc.id === id ? `In ${wc.name}` : `Move to ${wc.name}`}</option>{/each}
                           </select>
                           <button class="danger small" on:click={() => deletePhoto(p)}>Delete</button>
                         </div>

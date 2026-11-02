@@ -31,7 +31,7 @@ export interface CountryEntry {
 export interface Manifest {
   version: 1;
   updatedAt: string;
-  /** Keyed by ISO 3166-1 numeric id as used by world-atlas, e.g. "124". */
+  /** Keyed by region id: a country ("124") or a US state ("us-48"). See REGION_ID_RE. */
   countries: Record<string, CountryEntry>;
 }
 
@@ -55,6 +55,14 @@ export const PALETTE = [
 
 /** "Home" for the travel arcs. */
 export const HOME = { name: 'Dallas', lat: 32.78, lng: -96.8 };
+
+// The United States is shown as individual states rather than one country.
+export const US_ID = '840';
+export const US_NAME = 'United States';
+/** Region ids: ISO 3166-1 numeric for countries ("124"), "us-<FIPS>" for US states ("us-48" = Texas). */
+export const REGION_ID_RE = /^(\d{3}|us-\d{2})$/;
+export const stateId = (fips: string) => `us-${fips}`;
+export const isStateId = (id: string) => id.startsWith('us-');
 
 /** Nicer names for world-atlas' abbreviated ones. */
 const DISPLAY_NAMES: Record<string, string> = {

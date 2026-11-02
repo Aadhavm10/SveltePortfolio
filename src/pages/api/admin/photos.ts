@@ -1,7 +1,7 @@
 // Add a photo (already resized + EXIF-stripped in the browser) to a country.
 import type { APIRoute } from 'astro';
 import { guard, json } from '../../../lib/server/auth';
-import { countryName } from '../../../lib/server/countryNames';
+import { regionName } from '../../../lib/server/countryNames';
 import { deleteFiles, putFile, StoreNotConfiguredError, updateManifest } from '../../../lib/server/travelStore';
 import { nextColor, type Photo } from '../../../data/travel';
 
@@ -38,8 +38,8 @@ export const POST: APIRoute = async (ctx) => {
   }
 
   const countryId = String(form.get('countryId') ?? '');
-  const name = /^\d{3}$/.test(countryId) ? countryName(countryId) : undefined;
-  if (!name) return json({ error: 'Pick a valid country.' }, 400);
+  const name = regionName(countryId);
+  if (!name) return json({ error: 'Pick a valid country or US state.' }, 400);
 
   const full = form.get('full');
   const thumb = form.get('thumb');

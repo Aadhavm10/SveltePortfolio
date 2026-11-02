@@ -6,8 +6,9 @@
   import {
     emptyManifest,
     orderedCountryIds,
-    photoCount,
+    isStateId,
     shortName,
+    US_NAME,
     type Manifest,
   } from '../../data/travel';
   import type { GlobeScene } from './scene';
@@ -26,7 +27,6 @@
 
   $: ids = orderedCountryIds(manifest);
   $: total = ids.length;
-  $: photos = photoCount(manifest);
   $: selected = selectedId ? manifest.countries[selectedId] ?? null : null;
   $: selectedIndex = selectedId ? ids.indexOf(selectedId) : -1;
   $: hoveredCountry = hovered ? manifest.countries[hovered.id] ?? null : null;
@@ -181,7 +181,7 @@
 </script>
 
 <div class="globe-root" bind:this={container}>
-  <canvas bind:this={canvas} class="globe-canvas" aria-label="Interactive globe of countries Aadhav has visited"></canvas>
+  <canvas bind:this={canvas} class="globe-canvas" aria-label="Interactive globe of places Aadhav has visited"></canvas>
 
   {#if noWebGL}
     <p class="fallback">The 3D globe couldn't start on this device, but you can still browse the trips below.</p>
@@ -190,20 +190,18 @@
   <div class="hero" class:show={ready} class:hidden={!!selected}>
     <h1>Aadhav Manimurugan</h1>
     {#if total}
-      <p class="stat">
-        <strong>{total}</strong> {total === 1 ? 'country' : 'countries'} · <strong>{photos}</strong>
-        {photos === 1 ? 'photo' : 'photos'}
-      </p>
-      <div class="chips">
+      <!-- Hidden visually (the globe is the way in) but kept for keyboard and screen-reader users,
+           and shown as a fallback when the 3D globe can't start. -->
+      <nav class="chips" class:sr-only={!noWebGL} aria-label="Places I've been">
         {#each ids as id (id)}
           <button class="chip" style="--c:{manifest.countries[id].color}" on:click={() => select(id)}>
             <span class="dot"></span>{shortName(id, manifest.countries[id].name)}
           </button>
         {/each}
-      </div>
+      </nav>
     {/if}
     {#if !noWebGL}
-      <p class="hint">drag to spin · {touch ? 'tap' : 'click'} a glowing country</p>
+      <p class="hint">drag to spin · {touch ? 'tap' : 'click'} a glowing place</p>
     {/if}
   </div>
 
@@ -220,6 +218,7 @@
         country={selected}
         index={selectedIndex}
         total={ids.length}
+        parentName={selectedId && isStateId(selectedId) ? US_NAME : null}
         {prevName}
         {nextName}
         {mobile}
@@ -293,14 +292,16 @@
     max-width: 9.5em;
   }
 
-  .stat {
-    margin-top: 16px;
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.7);
-  }
-
-  .stat strong {
-    color: #fff;
+  .sr-only {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .chips {

@@ -198,6 +198,13 @@ export function createGlobeBody(world: World, opts: { maskWidth: number }): Glob
   );
   group.add(borders);
 
+  // --- US state borders (the US is shown as states) ---
+  const stateGeo = new BufferGeometry();
+  stateGeo.setAttribute('position', new Float32BufferAttribute(linesToPositions(world.stateBorders.coordinates, BORDER_RADIUS), 3));
+  group.add(
+    new LineSegments(stateGeo, new LineBasicMaterial({ color: '#7cc4ff', transparent: true, opacity: 0.26, depthWrite: false }))
+  );
+
   // --- Atmosphere ---
   const atmosphere = new Mesh(
     new SphereGeometry(1.2, 96, 64),
