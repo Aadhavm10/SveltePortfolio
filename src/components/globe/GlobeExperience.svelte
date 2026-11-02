@@ -51,11 +51,15 @@
     select(ids[(selectedIndex + dir + ids.length) % ids.length]);
   }
 
-  function nameAt(offset: number): string | null {
-    if (selectedIndex < 0 || ids.length < 2) return null;
-    const id = ids[(selectedIndex + offset + ids.length) % ids.length];
-    return manifest.countries[id]?.name ?? null;
+  // Pass every dependency explicitly so the reactive statements below re-run when they change
+  // (a template call like nameAt(-1) isn't re-evaluated when selectedIndex changes).
+  function nameAt(m: Manifest, list: string[], index: number, offset: number): string | null {
+    if (index < 0 || list.length < 2) return null;
+    const id = list[(index + offset + list.length) % list.length];
+    return m.countries[id]?.name ?? null;
   }
+  $: prevName = nameAt(manifest, ids, selectedIndex, -1);
+  $: nextName = nameAt(manifest, ids, selectedIndex, 1);
 
   async function fetchManifest(): Promise<Manifest> {
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -216,8 +220,8 @@
         country={selected}
         index={selectedIndex}
         total={ids.length}
-        prevName={nameAt(-1)}
-        nextName={nameAt(1)}
+        {prevName}
+        {nextName}
         {mobile}
         onClose={() => select(null)}
         onPrev={() => step(-1)}
