@@ -276,6 +276,7 @@
     for (const item of queue) {
       if (item.status !== 'ready' || !item.countryId) continue;
       item.status = 'uploading';
+      item.error = undefined;
       item.progress = 0;
       queue = queue;
       try {
@@ -284,7 +285,8 @@
         item.status = 'done';
         done++;
       } catch (err) {
-        item.status = 'error';
+        // Stays in the queue, so the next "Upload" tries it again.
+        item.status = 'ready';
         item.error = (err as Error).message;
         if (!authed) break;
       }
@@ -494,7 +496,7 @@
       {#if queue.length}
         <ul class="queue">
           {#each queue as item (item.key)}
-            <li class="q" class:error={item.status === 'error'} class:done={item.status === 'done'}>
+            <li class="q" class:error={item.status === 'error' || !!item.error} class:done={item.status === 'done'}>
               <img src={item.preview} alt="" />
               <div class="q-body">
                 {#if item.status === 'reading'}
@@ -502,6 +504,7 @@
                 {:else if item.status === 'error'}
                   <p class="error small">{item.error}</p>
                 {:else}
+                  {#if item.error && item.status === 'ready'}<p class="error small">Upload failed: {item.error}</p>{/if}
                   <div class="q-row">
                     <select bind:value={item.countryId} on:change={() => { item.detected = false; lastCountry = item.countryId; }} disabled={item.status !== 'ready'}>
                       <option value="" disabled>Choose a country or US state…</option>

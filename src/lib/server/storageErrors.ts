@@ -8,13 +8,16 @@ import {
   BlobStoreSuspendedError,
 } from '@vercel/blob';
 import { json } from './auth';
-import { StoreNotConfiguredError } from './travelStore';
+import { ManifestConflictError, StoreNotConfiguredError } from './travelStore';
 
 export function storageErrorMessage(err: unknown): { status: number; message: string } {
   const raw = err instanceof Error ? err.message : String(err);
   const details = raw ? ` (Details: ${raw.slice(0, 240)})` : '';
 
   if (err instanceof StoreNotConfiguredError) return { status: 503, message: err.message };
+  if (err instanceof ManifestConflictError || /precondition failed|etag mismatch/i.test(raw)) {
+    return { status: 409, message: 'Your travel data was being changed at the same moment. Please try again.' };
+  }
   if (err instanceof BlobStoreNotFoundError) {
     return {
       status: 502,

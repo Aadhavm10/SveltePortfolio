@@ -1,13 +1,13 @@
 // Public, read-only: the manifest that drives the globe on the home page.
 import type { APIRoute } from 'astro';
-import { readManifest, storeMode } from '../../lib/server/travelStore';
+import { readPublicManifest, storeMode } from '../../lib/server/travelStore';
 import { publicManifest } from '../../data/travel';
 
 export const prerender = false;
 
 export const GET: APIRoute = async () => {
   try {
-    const manifest = publicManifest(await readManifest());
+    const manifest = publicManifest(await readPublicManifest());
     const cache =
       storeMode() === 'blob' ? 'public, max-age=0, s-maxage=30, stale-while-revalidate=300' : 'no-store';
     return new Response(JSON.stringify(manifest), {

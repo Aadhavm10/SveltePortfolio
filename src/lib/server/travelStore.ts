@@ -3,10 +3,11 @@
 //  - Local filesystem under public/_local-travel/ during `astro dev` without a token.
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { BlobPreconditionFailedError, del, get, put } from '@vercel/blob';
+import { BlobPreconditionFailedError, del, get, list, put, type ListBlobResultBlob } from '@vercel/blob';
 import { BLOB_READ_WRITE_TOKEN, BLOB_STORE_ID } from 'astro:env/server';
 import { emptyManifest, type Manifest } from '../../data/travel';
 
+// Local mode keeps the only copy here. On Blob this is the public copy the globe reads (see below).
 const MANIFEST_PATH = 'travel/manifest.json';
 
 // With a read-write token, pass it explicitly; otherwise let @vercel/blob use OIDC + BLOB_STORE_ID.
@@ -26,30 +27,104 @@ export class StoreNotConfiguredError extends Error {
   }
 }
 
+/** Someone else saved between our read and our write; the caller retries. */
+export class ManifestConflictError extends Error {
+  constructor() {
+    super('Your travel data changed while saving. Please try again.');
+  }
+}
+
 interface Versioned {
   manifest: Manifest;
-  etag: string | null;
+  /** Which saved copy this is (Blob: its pathname; null for legacy / none / local). */
+  version: string | null;
 }
 
 // ---------- Vercel Blob ----------
+// Public blobs are served through a CDN that keeps an overwritten file stale for up to a minute
+// (@vercel/blob's `useCache: false` only bypasses that for private blobs). So the copy that saves
+// build on is never overwritten: every save writes a new, immutable file under travel/manifest/, and
+// the newest one is found with list(), which goes to the Blob API and is always current.
+//
+// list() is a metered "advanced" operation, so visitors never trigger it: each save also overwrites
+// the fixed public copy at MANIFEST_PATH, which the globe reads through the CDN (fine if it's a
+// minute behind). That file is also where data saved before versioned saves existed lives.
+const VERSION_PREFIX = 'travel/manifest/';
+const KEEP_VERSIONS = 5;
+const ONE_YEAR_S = 60 * 60 * 24 * 365;
+
+async function readPublicCopy(): Promise<Manifest | null> {
+  const res = await get(MANIFEST_PATH, { access: 'public', ...auth() });
+  if (!res || res.statusCode !== 200) return null;
+  return JSON.parse(await new Response(res.stream).text()) as Manifest;
+}
+
+async function listVersions(): Promise<ListBlobResultBlob[]> {
+  const blobs: ListBlobResultBlob[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await list({ prefix: VERSION_PREFIX, limit: 1000, cursor, ...auth() });
+    blobs.push(...page.blobs);
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+  // Names start with a zero-padded timestamp, so name order is save order.
+  return blobs.sort((a, b) => a.pathname.localeCompare(b.pathname));
+}
+
+function versionTime(pathname: string | undefined): number {
+  const n = pathname ? Number(pathname.slice(VERSION_PREFIX.length).split('-')[0]) : NaN;
+  return Number.isFinite(n) ? n : 0;
+}
+
 const blob = {
   async read(): Promise<Versioned> {
-    const res = await get(MANIFEST_PATH, { access: 'public', useCache: false, ...auth() });
-    if (!res || res.statusCode !== 200) return { manifest: emptyManifest(), etag: null };
-    const text = await new Response(res.stream).text();
-    return { manifest: JSON.parse(text) as Manifest, etag: res.blob.etag };
+    const newest = (await listVersions()).at(-1);
+    if (newest) {
+      const res = await fetch(newest.url, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Couldn't read the travel data (${res.status}).`);
+      return { manifest: (await res.json()) as Manifest, version: newest.pathname };
+    }
+    // Nothing saved the new way yet: start from the data saved the old way (or empty).
+    return { manifest: (await readPublicCopy()) ?? emptyManifest(), version: null };
   },
-  async write(m: Manifest, etag: string | null): Promise<void> {
-    await put(MANIFEST_PATH, JSON.stringify(m), {
+
+  /** For the public globe: no list() call; may be up to a minute behind the latest save. */
+  async readPublic(): Promise<Manifest> {
+    return (await readPublicCopy()) ?? (await blob.read()).manifest;
+  },
+
+  async write(m: Manifest, readVersion: string | null): Promise<void> {
+    const versions = await listVersions();
+    const newest = versions.at(-1)?.pathname ?? null;
+    if (newest !== readVersion) throw new ManifestConflictError();
+
+    // Always sort after the current newest, even if this server's clock is a little behind.
+    const time = Math.max(Date.now(), versionTime(newest ?? undefined) + 1);
+    const name = `${VERSION_PREFIX}${String(time).padStart(15, '0')}-${Math.random().toString(36).slice(2, 8)}.json`;
+    const body = JSON.stringify(m);
+    await put(name, body, {
       access: 'public',
       contentType: 'application/json',
       addRandomSuffix: false,
+      allowOverwrite: false,
+      cacheControlMaxAge: ONE_YEAR_S, // never overwritten, so safe to cache
+      ...auth(),
+    });
+
+    // The save is done; the rest is best effort. Refresh the public copy (the next save rewrites it
+    // if this fails) and keep only the newest few versions.
+    await put(MANIFEST_PATH, body, {
+      access: 'public',
+      contentType: 'application/json',
+      addRandomSuffix: false,
+      allowOverwrite: true,
       cacheControlMaxAge: 60,
       ...auth(),
-      // Optimistic concurrency: fail if someone else wrote in between.
-      ...(etag ? { ifMatch: etag } : { allowOverwrite: false }),
-    });
+    }).catch((e) => console.error('Public travel data refresh failed', e));
+    const stale = versions.slice(0, Math.max(0, versions.length + 1 - KEEP_VERSIONS)).map((b) => b.url);
+    if (stale.length) await del(stale, auth()).catch((e) => console.error('Old travel data cleanup failed', e));
   },
+
   async putFile(pathname: string, data: Blob, contentType: string): Promise<string> {
     const res = await put(pathname, data, {
       access: 'public',
@@ -59,6 +134,7 @@ const blob = {
     });
     return res.url;
   },
+
   async deleteFiles(urls: string[]): Promise<void> {
     if (urls.length) await del(urls, auth());
   },
@@ -72,10 +148,13 @@ const local = {
   async read(): Promise<Versioned> {
     try {
       const text = await readFile(path.join(LOCAL_DIR, MANIFEST_PATH), 'utf8');
-      return { manifest: JSON.parse(text) as Manifest, etag: null };
+      return { manifest: JSON.parse(text) as Manifest, version: null };
     } catch {
-      return { manifest: emptyManifest(), etag: null };
+      return { manifest: emptyManifest(), version: null };
     }
+  },
+  async readPublic(): Promise<Manifest> {
+    return (await local.read()).manifest;
   },
   async write(m: Manifest): Promise<void> {
     const file = path.join(LOCAL_DIR, MANIFEST_PATH);
@@ -107,10 +186,16 @@ function backend() {
   throw new StoreNotConfiguredError();
 }
 
+/** Always the latest save (for the uploader). */
 export async function readManifest(): Promise<Manifest> {
-  const mode = storeMode();
-  if (mode === 'none') return emptyManifest();
+  if (storeMode() === 'none') return emptyManifest();
   return (await backend().read()).manifest;
+}
+
+/** For the public globe: cheap to read, may be up to a minute behind the latest save. */
+export async function readPublicManifest(): Promise<Manifest> {
+  if (storeMode() === 'none') return emptyManifest();
+  return backend().readPublic();
 }
 
 /**
@@ -120,14 +205,15 @@ export async function readManifest(): Promise<Manifest> {
 export async function updateManifest<T>(mutate: (m: Manifest) => T | Promise<T>): Promise<{ manifest: Manifest; result: T }> {
   const store = backend();
   for (let attempt = 0; ; attempt++) {
-    const { manifest, etag } = await store.read();
+    const { manifest, version } = await store.read();
     const result = await mutate(manifest);
     manifest.updatedAt = new Date().toISOString();
     try {
-      await store.write(manifest, etag);
+      await store.write(manifest, version);
       return { manifest, result };
     } catch (err) {
-      const conflict = err instanceof BlobPreconditionFailedError || /already exists/i.test(String(err));
+      const conflict =
+        err instanceof ManifestConflictError || err instanceof BlobPreconditionFailedError || /already exists/i.test(String(err));
       if (!conflict || attempt >= 4) throw err;
     }
   }
