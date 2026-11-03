@@ -15,6 +15,8 @@ export interface Photo {
   lng?: number;
   caption?: string;
   showPin: boolean;
+  /** Fingerprint of the picture (64-bit difference hash, hex), used to spot a photo added twice. */
+  dhash?: string;
 }
 
 export interface CountryEntry {
@@ -56,16 +58,23 @@ export const emptyManifest = (): Manifest => ({
   countries: {},
 });
 
-/** Site accent colours (same as the BubbleMenu hovers) + a few extras. */
+/**
+ * Place colours: 12 saturated hues spread around the colour wheel, so places that border each
+ * other can always get clearly different ones (see src/lib/server/placeColors.ts).
+ */
 export const PALETTE = [
-  '#ff6b6b',
-  '#4ecdc4',
-  '#ffe66d',
-  '#a8e6cf',
-  '#ff8b94',
-  '#b197fc',
-  '#ffa94d',
-  '#74c0fc',
+  '#ff5a5a', // red      0°
+  '#ff9a3c', // orange  29°
+  '#ffe03d', // yellow  50°
+  '#8ee63c', // lime    91°
+  '#45e65a', // green  128°
+  '#2ee6b0', // teal   162°
+  '#3cc8ff', // sky    197°
+  '#5b7cff', // blue   228°
+  '#9b6bff', // violet 259°
+  '#eb5cff', // purple 292°
+  '#ff4dc4', // magenta 320°
+  '#ff5c93', // pink   340°
 ];
 
 /** "Home" for the travel arcs. */
@@ -136,22 +145,37 @@ export function orderedCountryIds(m: Manifest): string[] {
 }
 
 /**
- * What the public globe gets: the same data, minus the location of any photo whose pin is hidden,
- * so turning a pin off really keeps that spot private.
+ * What the public globe gets: the same data, minus the location of any photo whose pin is hidden
+ * (so turning a pin off really keeps that spot private) and minus the uploader-only fingerprints.
  */
 export function publicManifest(m: Manifest): Manifest {
   const countries: Record<string, CountryEntry> = {};
   for (const [id, c] of Object.entries(m.countries)) {
     countries[id] = {
       ...c,
-      photos: c.photos.map((p) => (p.showPin ? p : { ...p, lat: undefined, lng: undefined })),
+      photos: c.photos.map(({ dhash: _fingerprint, ...p }) => (p.showPin ? p : { ...p, lat: undefined, lng: undefined })),
     };
   }
   return { ...m, countries };
 }
 
-/** Next palette colour that no visited country uses yet (cycles when all are taken). */
-export function nextColor(m: Manifest): string {
-  const used = new Set(Object.values(m.countries).map((c) => c.color));
-  return PALETTE.find((c) => !used.has(c)) ?? PALETTE[Object.keys(m.countries).length % PALETTE.length];
+// ---------- Spotting a photo added twice ----------
+const BITS = [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4];
+
+/** Number of differing bits between two hex fingerprints of the same length. */
+export function hexDistance(a: string, b: string): number {
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d += BITS[parseInt(a[i], 16) ^ parseInt(b[i], 16)];
+  return d;
+}
+
+type PhotoSig = Pick<Photo, 'dhash' | 'takenAt'> & { w?: number; h?: number };
+
+/**
+ * Whether two photos look like the same picture: fingerprints within 4 bits of each other, or,
+ * when either has no fingerprint (uploaded before they existed), the same capture time and size.
+ */
+export function samePhoto(a: PhotoSig, b: PhotoSig): boolean {
+  if (a.dhash && b.dhash) return hexDistance(a.dhash, b.dhash) <= 4;
+  return !!a.takenAt && a.takenAt === b.takenAt && a.w === b.w && a.h === b.h;
 }

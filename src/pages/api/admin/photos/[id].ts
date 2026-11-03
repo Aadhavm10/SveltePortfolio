@@ -4,7 +4,8 @@ import { guard, json } from '../../../../lib/server/auth';
 import { regionName } from '../../../../lib/server/countryNames';
 import { deleteFiles, updateManifest } from '../../../../lib/server/travelStore';
 import { storageFailure } from '../../../../lib/server/storageErrors';
-import { nextColor, type Manifest, type Photo } from '../../../../data/travel';
+import { pickColor } from '../../../../lib/server/placeColors';
+import type { Manifest, Photo } from '../../../../data/travel';
 
 export const prerender = false;
 
@@ -76,7 +77,7 @@ export const PATCH: APIRoute = async (ctx) => {
         delete photo.lat;
         delete photo.lng;
         if (!m.countries[moveTo]) {
-          m.countries[moveTo] = { name: moveName!, color: nextColor(m), addedAt: new Date().toISOString(), photos: [] };
+          m.countries[moveTo] = { name: moveName!, color: pickColor(m, moveTo), addedAt: new Date().toISOString(), photos: [] };
         }
         m.countries[moveTo].photos.push(photo);
       }

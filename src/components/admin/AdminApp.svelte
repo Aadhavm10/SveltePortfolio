@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import exifr from 'exifr';
   import { findRegionAt, loadWorld, type World } from '../../lib/geo';
-  import { orderedCountryIds, PALETTE, type Manifest, type Photo, type StarredPlace } from '../../data/travel';
+  import { orderedCountryIds, PALETTE, samePhoto, type Manifest, type Photo, type StarredPlace } from '../../data/travel';
 
   export let authed = false;
   export let configured = false;
@@ -29,6 +29,7 @@
     lat?: number;
     lng?: number;
     takenAt?: string;
+    dhash?: string;
     caption: string;
     showPin: boolean;
     full?: Blob;
@@ -59,6 +60,46 @@
     ? queue.filter((q) => q !== applySource && q.status === 'ready' && q.countryId !== applySource.countryId)
     : [];
   $: applyUndetected = applyTargets.filter((q) => !q.detected).length;
+
+  // Photos that look like ones already uploaded, or like an earlier photo in this batch.
+  $: queueDups = findQueueDups(queue, manifest);
+  // Uploaded photos that look like another uploaded photo (by photo id).
+  $: uploadedDups = findUploadedDups(manifest);
+
+  function findQueueDups(q: QueueItem[], m: Manifest | null): Map<string, string> {
+    const out = new Map<string, string>();
+    const uploaded = m ? Object.values(m.countries).flatMap((c) => c.photos.map((p) => ({ p, place: c.name }))) : [];
+    const earlier: QueueItem[] = [];
+    for (const item of q) {
+      if (item.status !== 'ready') continue;
+      const hit = uploaded.find(({ p }) => samePhoto(item, p));
+      if (hit) out.set(item.key, `Already uploaded · ${hit.place}`);
+      else if (earlier.some((e) => samePhoto(item, e))) out.set(item.key, 'Duplicate in this batch');
+      earlier.push(item);
+    }
+    return out;
+  }
+
+  function findUploadedDups(m: Manifest | null): Set<string> {
+    const out = new Set<string>();
+    const all = m ? Object.values(m.countries).flatMap((c) => c.photos) : [];
+    for (let i = 0; i < all.length; i++) {
+      for (let j = i + 1; j < all.length; j++) {
+        if (samePhoto(all[i], all[j])) {
+          out.add(all[i].id);
+          out.add(all[j].id);
+        }
+      }
+    }
+    return out;
+  }
+
+  function removeDuplicates() {
+    const n = queueDups.size;
+    queue.filter((q) => queueDups.has(q.key)).forEach((q) => URL.revokeObjectURL(q.preview));
+    queue = queue.filter((q) => !queueDups.has(q.key));
+    flash(`Removed ${n} ${n === 1 ? 'duplicate' : 'duplicates'}.`);
+  }
 
   function nameOf(id: string): string {
     return manifest?.countries[id]?.name ?? world?.regions.get(id)?.name ?? id;
@@ -164,6 +205,46 @@
   }
 
   /**
+   * Fingerprint of the picture: shrink it to 9×8 greys and record whether each pixel is brighter
+   * than its right-hand neighbour (a 64-bit "difference hash"). The same photo re-saved, resized or
+   * converted gives (nearly) the same bits; different photos almost never do.
+   */
+  let hashCanvas: HTMLCanvasElement | null = null;
+  function fingerprint(src: ImageBitmap | HTMLImageElement): string | undefined {
+    try {
+      // Draw at 72×64 first and average 8×8 blocks, so the result doesn't depend on how the
+      // browser samples a big photo down.
+      hashCanvas ??= Object.assign(document.createElement('canvas'), { width: 72, height: 64 });
+      const ctx = hashCanvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return undefined;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(src, 0, 0, 72, 64);
+      const px = ctx.getImageData(0, 0, 72, 64).data;
+      const grey = new Float32Array(72);
+      for (let y = 0; y < 64; y++) {
+        for (let x = 0; x < 72; x++) {
+          const i = (y * 72 + x) * 4;
+          grey[(y >> 3) * 9 + Math.floor(x / 8)] += 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+        }
+      }
+      let hex = '';
+      for (let row = 0; row < 8; row++) {
+        let nibble = 0;
+        for (let col = 0; col < 8; col++) {
+          nibble = (nibble << 1) | (grey[row * 9 + col] > grey[row * 9 + col + 1] ? 1 : 0);
+          if (col % 4 === 3) {
+            hex += nibble.toString(16);
+            nibble = 0;
+          }
+        }
+      }
+      return hex;
+    } catch {
+      return undefined; // a missing fingerprint only means duplicates are matched by date + size
+    }
+  }
+
+  /**
    * EXIF dates have no time zone, and exifr turns them into a Date in this browser's zone.
    * Keep the wall-clock time as written ("2025-02-05T21:00:00", no "Z") so the day doesn't
    * shift when you upload from somewhere else.
@@ -194,6 +275,7 @@
       if (!item.countryId) item.countryId = lastCountry;
 
       const img = await decode(item.file);
+      item.dhash = fingerprint(img);
       const full = await encode(img, 2000, 0.82, 3_500_000);
       const thumb = await encode(img, 640, 0.75, 280_000);
       if ('close' in img) img.close();
@@ -278,6 +360,7 @@
       }
       fd.append('caption', item.caption);
       fd.append('showPin', item.showPin ? '1' : '0');
+      if (item.dhash) fd.append('dhash', item.dhash);
 
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/api/admin/photos');
@@ -443,6 +526,19 @@
     }
   }
 
+  let shuffling = false;
+  async function shuffleColors() {
+    shuffling = true;
+    try {
+      ({ manifest } = await api('/api/admin/colors', { method: 'POST' }));
+      flash('Colours shuffled. The globe updates within a minute.');
+    } catch (err) {
+      flash((err as Error).message);
+    } finally {
+      shuffling = false;
+    }
+  }
+
   async function makeCover(countryId: string, photo: Photo) {
     const order = [photo.id, ...manifest!.countries[countryId].photos.filter((p) => p.id !== photo.id).map((p) => p.id)];
     try {
@@ -525,6 +621,12 @@
       </label>
 
       {#if queue.length}
+        {#if queueDups.size}
+          <div class="dup-note">
+            <span>⚠ {queueDups.size} {queueDups.size === 1 ? 'photo looks like a duplicate' : 'photos look like duplicates'}</span>
+            <button class="ghost small" on:click={removeDuplicates}>Remove {queueDups.size === 1 ? 'it' : 'them'}</button>
+          </div>
+        {/if}
         <ul class="queue">
           {#each queue as item (item.key)}
             <li class="q" class:error={item.status === 'error' || !!item.error} class:done={item.status === 'done'}>
@@ -553,6 +655,7 @@
                     </select>
                     {#if item.detected}<span class="badge ok">📍 detected</span>{:else if item.lat === undefined}<span class="badge">no location</span>{/if}
                   </div>
+                  {#if queueDups.has(item.key)}<p class="dup small">⚠ {queueDups.get(item.key)}</p>{/if}
                   {#if applySource === item && applyTargets.length}
                     <div class="q-row apply">
                       <button class="ghost small" on:click={() => applyPlace(false)} aria-label="Use {nameOf(item.countryId)} for all {readyTotal} photos">
@@ -593,7 +696,12 @@
     </section>
 
     <section class="card">
-      <h2>Your places <span class="muted">({visitedIds.length})</span></h2>
+      <div class="places-head">
+        <h2>Your places <span class="muted">({visitedIds.length})</span></h2>
+        {#if visitedIds.length > 1}
+          <button class="ghost small" on:click={shuffleColors} disabled={shuffling}>{shuffling ? 'Shuffling…' : '🎲 Shuffle colours'}</button>
+        {/if}
+      </div>
       {#if !manifest}
         <p class="muted">Loading…</p>
       {:else if !visitedIds.length}
@@ -607,6 +715,7 @@
                 <span class="dot" style="background:{c.color}"></span>
                 <span class="c-name">{c.name}</span>
                 <span class="muted small">{c.photos.length} {c.photos.length === 1 ? 'photo' : 'photos'}{c.when ? ` · ${c.when}` : ''}</span>
+                {#if c.photos.some((p) => uploadedDups.has(p.id))}<span class="badge warn">possible duplicate</span>{/if}
                 <span class="chev">{openCountry === id ? '−' : '+'}</span>
               </button>
 
@@ -634,6 +743,7 @@
                       <div class="ph">
                         <img src={p.thumb} alt={p.caption ?? ''} loading="lazy" />
                         {#if i === 0}<span class="cover-tag">cover</span>{/if}
+                        {#if uploadedDups.has(p.id)}<span class="dup-tag">Possible duplicate</span>{/if}
                         <input
                           class="caption"
                           type="text"
@@ -1011,6 +1121,45 @@
     white-space: nowrap;
   }
 
+  .badge.warn {
+    border-color: rgba(255, 196, 87, 0.55);
+    color: #ffd38a;
+  }
+  .dup {
+    color: #ffd38a;
+  }
+  .dup-note {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 196, 87, 0.4);
+    background: rgba(255, 196, 87, 0.07);
+    color: #ffd38a;
+    font-size: 14px;
+  }
+  .places-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .dup-tag {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    color: #1a1204;
+    background: #ffd38a;
+  }
   .badge.ok {
     border-color: rgba(78, 205, 196, 0.5);
     color: #bff3ee;

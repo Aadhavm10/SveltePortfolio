@@ -4,7 +4,8 @@ import { guard, json } from '../../../lib/server/auth';
 import { regionName } from '../../../lib/server/countryNames';
 import { deleteFiles, putFile, updateManifest } from '../../../lib/server/travelStore';
 import { storageFailure } from '../../../lib/server/storageErrors';
-import { nextColor, type Photo } from '../../../data/travel';
+import { pickColor } from '../../../lib/server/placeColors';
+import type { Photo } from '../../../data/travel';
 
 export const prerender = false;
 
@@ -66,6 +67,8 @@ export const POST: APIRoute = async (ctx) => {
       : undefined;
   const caption = String(form.get('caption') ?? '').trim().slice(0, 200) || undefined;
   const showPin = form.get('showPin') !== '0';
+  const dhashRaw = form.get('dhash');
+  const dhash = typeof dhashRaw === 'string' && /^[0-9a-f]{16}$/.test(dhashRaw) ? dhashRaw : undefined;
 
   const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   const mime = (k: 'webp' | 'jpg') => (k === 'webp' ? 'image/webp' : 'image/jpeg');
@@ -86,6 +89,7 @@ export const POST: APIRoute = async (ctx) => {
       takenAt,
       caption,
       showPin,
+      ...(dhash ? { dhash } : {}),
       ...(hasCoords ? { lat: round1(lat!), lng: round1(lng!) } : {}),
     };
 
@@ -93,7 +97,7 @@ export const POST: APIRoute = async (ctx) => {
       if (!m.countries[countryId]) {
         m.countries[countryId] = {
           name,
-          color: nextColor(m),
+          color: pickColor(m, countryId),
           addedAt: new Date().toISOString(),
           photos: [],
         };
