@@ -7,8 +7,7 @@ import { BlobPreconditionFailedError, del, get, list, put, type ListBlobResultBl
 import { BLOB_READ_WRITE_TOKEN, BLOB_STORE_ID } from 'astro:env/server';
 import { emptyManifest, type Manifest } from '../../data/travel';
 
-// Local mode keeps a single file at this path. On Blob it's only read as a fallback for data saved
-// before versioned saves existed (see the Blob section below).
+// Local mode keeps the only copy here. On Blob this is the public copy the globe reads (see below).
 const MANIFEST_PATH = 'travel/manifest.json';
 
 // With a read-write token, pass it explicitly; otherwise let @vercel/blob use OIDC + BLOB_STORE_ID.
@@ -43,12 +42,22 @@ interface Versioned {
 
 // ---------- Vercel Blob ----------
 // Public blobs are served through a CDN that keeps an overwritten file stale for up to a minute
-// (@vercel/blob's `useCache: false` only bypasses that for private blobs). So the manifest is never
-// overwritten: every save writes a new, immutable file under travel/manifest/, and the newest one is
-// found with list(), which goes to the Blob API and is always current.
+// (@vercel/blob's `useCache: false` only bypasses that for private blobs). So the copy that saves
+// build on is never overwritten: every save writes a new, immutable file under travel/manifest/, and
+// the newest one is found with list(), which goes to the Blob API and is always current.
+//
+// list() is a metered "advanced" operation, so visitors never trigger it: each save also overwrites
+// the fixed public copy at MANIFEST_PATH, which the globe reads through the CDN (fine if it's a
+// minute behind). That file is also where data saved before versioned saves existed lives.
 const VERSION_PREFIX = 'travel/manifest/';
 const KEEP_VERSIONS = 5;
 const ONE_YEAR_S = 60 * 60 * 24 * 365;
+
+async function readPublicCopy(): Promise<Manifest | null> {
+  const res = await get(MANIFEST_PATH, { access: 'public', ...auth() });
+  if (!res || res.statusCode !== 200) return null;
+  return JSON.parse(await new Response(res.stream).text()) as Manifest;
+}
 
 async function listVersions(): Promise<ListBlobResultBlob[]> {
   const blobs: ListBlobResultBlob[] = [];
@@ -75,10 +84,13 @@ const blob = {
       if (!res.ok) throw new Error(`Couldn't read the travel data (${res.status}).`);
       return { manifest: (await res.json()) as Manifest, version: newest.pathname };
     }
-    // Nothing saved the new way yet: fall back to the old single file (or start empty).
-    const legacy = await get(MANIFEST_PATH, { access: 'public', ...auth() });
-    if (!legacy || legacy.statusCode !== 200) return { manifest: emptyManifest(), version: null };
-    return { manifest: JSON.parse(await new Response(legacy.stream).text()) as Manifest, version: null };
+    // Nothing saved the new way yet: start from the data saved the old way (or empty).
+    return { manifest: (await readPublicCopy()) ?? emptyManifest(), version: null };
+  },
+
+  /** For the public globe: no list() call; may be up to a minute behind the latest save. */
+  async readPublic(): Promise<Manifest> {
+    return (await readPublicCopy()) ?? (await blob.read()).manifest;
   },
 
   async write(m: Manifest, readVersion: string | null): Promise<void> {
@@ -89,7 +101,8 @@ const blob = {
     // Always sort after the current newest, even if this server's clock is a little behind.
     const time = Math.max(Date.now(), versionTime(newest ?? undefined) + 1);
     const name = `${VERSION_PREFIX}${String(time).padStart(15, '0')}-${Math.random().toString(36).slice(2, 8)}.json`;
-    await put(name, JSON.stringify(m), {
+    const body = JSON.stringify(m);
+    await put(name, body, {
       access: 'public',
       contentType: 'application/json',
       addRandomSuffix: false,
@@ -98,10 +111,17 @@ const blob = {
       ...auth(),
     });
 
-    // Tidy up older copies (best effort): keep the newest few, and drop the old single file once
-    // the first versioned save exists.
+    // The save is done; the rest is best effort. Refresh the public copy (the next save rewrites it
+    // if this fails) and keep only the newest few versions.
+    await put(MANIFEST_PATH, body, {
+      access: 'public',
+      contentType: 'application/json',
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      cacheControlMaxAge: 60,
+      ...auth(),
+    }).catch((e) => console.error('Public travel data refresh failed', e));
     const stale = versions.slice(0, Math.max(0, versions.length + 1 - KEEP_VERSIONS)).map((b) => b.url);
-    if (!newest) stale.push(MANIFEST_PATH);
     if (stale.length) await del(stale, auth()).catch((e) => console.error('Old travel data cleanup failed', e));
   },
 
@@ -133,6 +153,9 @@ const local = {
       return { manifest: emptyManifest(), version: null };
     }
   },
+  async readPublic(): Promise<Manifest> {
+    return (await local.read()).manifest;
+  },
   async write(m: Manifest): Promise<void> {
     const file = path.join(LOCAL_DIR, MANIFEST_PATH);
     await mkdir(path.dirname(file), { recursive: true });
@@ -163,10 +186,16 @@ function backend() {
   throw new StoreNotConfiguredError();
 }
 
+/** Always the latest save (for the uploader). */
 export async function readManifest(): Promise<Manifest> {
-  const mode = storeMode();
-  if (mode === 'none') return emptyManifest();
+  if (storeMode() === 'none') return emptyManifest();
   return (await backend().read()).manifest;
+}
+
+/** For the public globe: cheap to read, may be up to a minute behind the latest save. */
+export async function readPublicManifest(): Promise<Manifest> {
+  if (storeMode() === 'none') return emptyManifest();
+  return backend().readPublic();
 }
 
 /**
