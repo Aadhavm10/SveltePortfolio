@@ -419,6 +419,10 @@
   }
 
   @media (max-width: 768px) {
+    /* Sit above the fixed "Made with…" credit in the bottom-right corner. */
+    .hero {
+      bottom: calc(3rem + env(safe-area-inset-bottom, 0px));
+    }
     .hero h1 {
       font-size: clamp(2rem, 9vw, 2.6rem);
     }
