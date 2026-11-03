@@ -25,3 +25,6 @@ pnpm-debug.log*
 
 # vercel
 .vercel
+
+# local dev storage for the /admin photo uploader
+public/_local-travel/

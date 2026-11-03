@@ -229,9 +229,15 @@
               class="pill-link pill-link-parent {hoveredItemIndex === idx || clickedItemIndex === idx ? 'hovered' : ''}"
               style="--item-rot: {item.rotation ?? 0}deg; --pill-bg: {menuBg}; --pill-color: {menuContentColor}; --hover-bg: {item.hoverStyles?.bgColor || '#f3f4f6'}; --hover-color: {item.hoverStyles?.textColor || menuContentColor};"
               bind:this={bubblesRef[idx]}
-              on:mouseenter={() => hoveredItemIndex = idx}
-              on:mouseleave={() => hoveredItemIndex = null}
+              on:pointerenter={(e) => { if (e.pointerType === 'mouse') hoveredItemIndex = idx; }}
+              on:pointerleave={(e) => { if (e.pointerType === 'mouse') hoveredItemIndex = null; }}
               on:click={(e) => handleParentClick(idx, e)}
+              on:keydown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  clickedItemIndex = clickedItemIndex === idx ? null : idx;
+                }
+              }}
             >
               {#if hoveredItemIndex === idx || clickedItemIndex === idx}
                 <div class="sub-items">
@@ -259,6 +265,8 @@
             <a
               role="menuitem"
               href={item.href}
+              target={item.href?.startsWith('http') ? '_blank' : undefined}
+              rel={item.href?.startsWith('http') ? 'noopener noreferrer' : undefined}
               aria-label={item.ariaLabel || item.label}
               class="pill-link"
               style="--item-rot: {item.rotation ?? 0}deg; --pill-bg: {menuBg}; --pill-color: {menuContentColor}; --hover-bg: {item.hoverStyles?.bgColor || '#f3f4f6'}; --hover-color: {item.hoverStyles?.textColor || menuContentColor};"
@@ -585,14 +593,24 @@
   }
 
   @media (max-width: 899px) {
+    /* The pill is short here, so put the links side by side instead of stacking them. */
     :global(.bubble-menu-items .sub-items) {
-      gap: 0.4rem;
-      padding: 0.75rem;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      padding: 0 0.75rem;
     }
 
     :global(.bubble-menu-items .sub-item-link) {
-      font-size: 1.1rem;
-      padding: 0.4rem 0.8rem;
+      font-size: clamp(0.95rem, 4vw, 1.15rem);
+      padding: 0.55rem 0.75rem;
+      border-radius: 999px;
+    }
+
+    :global(.bubble-menu-items .sub-item-link:hover),
+    :global(.bubble-menu-items .sub-item-link:active) {
+      opacity: 1;
+      background: rgba(0, 0, 0, 0.08);
     }
   }
 </style>
