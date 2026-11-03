@@ -24,7 +24,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { gsap } from 'gsap';
 import { latLngToVector3, vector3ToLatLng, type World } from '../../lib/geo';
-import { HOME, type Manifest } from '../../data/travel';
+import { HOME, homeIdOf, homeTarget, isHomeTarget, type Manifest, type StarredPlace } from '../../data/travel';
 import { createGlobeBody } from './globeBody';
 import { createVisitedLayer, type VisitedLayer } from './countries';
 import { createStars } from './stars';
@@ -85,7 +85,8 @@ export async function createGlobeScene(o: GlobeSceneOptions): Promise<GlobeScene
 
   let layer: VisitedLayer = createVisitedLayer(world, o.manifest, pixelRatio);
   scene.add(layer.group);
-  let starred: StarredLayer = createStarredLayer(world, o.manifest.starred ?? [], pixelRatio);
+  let homes: StarredPlace[] = o.manifest.starred ?? [];
+  let starred: StarredLayer = createStarredLayer(world, homes, pixelRatio);
   scene.add(starred.group);
   o.onProgress?.(0.75);
   await nextFrame();
@@ -274,8 +275,11 @@ export async function createGlobeScene(o: GlobeSceneOptions): Promise<GlobeScene
     down = null;
     if (moved > 6 || !quick) return;
     const { id, star } = pick(e.clientX, e.clientY);
-    // A star opens the country/state it's in (if you have photos there).
-    o.onSelect(star && star.kind === 'star' ? star.regionId : id);
+    // A home base opens its own photos; one without photos opens the country/state it's in.
+    if (star && star.kind === 'star') {
+      const home = homes[star.index];
+      o.onSelect(home?.photos?.length ? homeTarget(home.id) : star.regionId);
+    } else o.onSelect(id);
   };
   const onPointerLeave = () => {
     pendingMove = null;
@@ -355,7 +359,8 @@ export async function createGlobeScene(o: GlobeSceneOptions): Promise<GlobeScene
       layer = createVisitedLayer(world, m, pixelRatio);
       scene.add(layer.group);
       starred.dispose();
-      starred = createStarredLayer(world, m.starred ?? [], pixelRatio);
+      homes = m.starred ?? [];
+      starred = createStarredLayer(world, homes, pixelRatio);
       hoverStar = null;
       scene.add(starred.group);
       layer.setSelected(selected);
@@ -365,7 +370,13 @@ export async function createGlobeScene(o: GlobeSceneOptions): Promise<GlobeScene
       selected = id;
       layer.setSelected(id);
       window.clearTimeout(resumeTimer);
-      if (id) {
+      if (id && isHomeTarget(id)) {
+        // A home base: the visited places dim (none matches the id) and the camera closes in on its marker.
+        const home = homes.find((s) => s.id === homeIdOf(id));
+        if (home) flyTo(home.lat, home.lng, Math.min(defaultDistance * 0.8, 1.75), 1.6);
+        if (panel?.side === 'right') tweenShift(Math.round(panel.size / 2), 0);
+        else if (panel?.side === 'bottom') tweenShift(0, Math.round(panel.size / 2));
+      } else if (id) {
         const f = layer.focus(id);
         if (f) {
           const dist = Math.min(defaultDistance * 0.8, Math.max(1.75, 1.6 + f.size * 2.6));

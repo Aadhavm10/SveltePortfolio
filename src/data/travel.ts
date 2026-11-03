@@ -39,9 +39,52 @@ export interface StarredPlace {
   /** City-level position, rounded to 0.01° (~1km). */
   lat: number;
   lng: number;
+  /** Photos tagged to this home base (shown in its own panel, not the state's / country's). */
+  photos?: Photo[];
 }
 
 export const MAX_STARRED = 50;
+
+// ---------- Home bases as a place photos can be tagged with ----------
+/** Upload / move target for a home base: "home:<starred id>" (regions use their region id). */
+export const HOME_PREFIX = 'home:';
+export const homeTarget = (starredId: string) => HOME_PREFIX + starredId;
+export const isHomeTarget = (target: string) => target.startsWith(HOME_PREFIX);
+export const homeIdOf = (target: string) => target.slice(HOME_PREFIX.length);
+/** Panel accent for home bases (same family as their marker on the globe). */
+export const HOME_COLOR = '#8fd3ff';
+/** Photos taken within this distance of a home base are tagged to it automatically (50 miles). */
+export const HOME_RADIUS_KM = 80.5;
+
+function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const rad = Math.PI / 180;
+  const a =
+    Math.sin(((lat2 - lat1) * rad) / 2) ** 2 +
+    Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(((lng2 - lng1) * rad) / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+/** The closest home base within HOME_RADIUS_KM of a spot, if any. */
+export function nearestHome(places: StarredPlace[] | undefined, lat: number, lng: number): StarredPlace | null {
+  let best: StarredPlace | null = null;
+  let bestKm = HOME_RADIUS_KM;
+  for (const s of places ?? []) {
+    const km = distanceKm(lat, lng, s.lat, s.lng);
+    if (km <= bestKm) {
+      best = s;
+      bestKm = km;
+    }
+  }
+  return best;
+}
+
+/** Every uploaded photo with the name of the place it's in (countries, states and home bases). */
+export function allPhotos(m: Manifest): { photo: Photo; place: string }[] {
+  return [
+    ...Object.values(m.countries).flatMap((c) => c.photos.map((photo) => ({ photo, place: c.name }))),
+    ...(m.starred ?? []).flatMap((s) => (s.photos ?? []).map((photo) => ({ photo, place: s.name }))),
+  ];
+}
 
 export interface Manifest {
   version: 1;
@@ -149,14 +192,12 @@ export function orderedCountryIds(m: Manifest): string[] {
  * (so turning a pin off really keeps that spot private) and minus the uploader-only fingerprints.
  */
 export function publicManifest(m: Manifest): Manifest {
+  const clean = (photos: Photo[]) =>
+    photos.map(({ dhash: _fingerprint, ...p }) => (p.showPin ? p : { ...p, lat: undefined, lng: undefined }));
   const countries: Record<string, CountryEntry> = {};
-  for (const [id, c] of Object.entries(m.countries)) {
-    countries[id] = {
-      ...c,
-      photos: c.photos.map(({ dhash: _fingerprint, ...p }) => (p.showPin ? p : { ...p, lat: undefined, lng: undefined })),
-    };
-  }
-  return { ...m, countries };
+  for (const [id, c] of Object.entries(m.countries)) countries[id] = { ...c, photos: clean(c.photos) };
+  const starred = m.starred?.map((s) => (s.photos ? { ...s, photos: clean(s.photos) } : s));
+  return { ...m, countries, ...(starred ? { starred } : {}) };
 }
 
 // ---------- Spotting a photo added twice ----------

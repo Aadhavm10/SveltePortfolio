@@ -2,7 +2,19 @@
   import { onMount } from 'svelte';
   import exifr from 'exifr';
   import { findRegionAt, loadWorld, type World } from '../../lib/geo';
-  import { orderedCountryIds, PALETTE, samePhoto, type Manifest, type Photo, type StarredPlace } from '../../data/travel';
+  import {
+    allPhotos,
+    homeIdOf,
+    homeTarget,
+    isHomeTarget,
+    nearestHome,
+    orderedCountryIds,
+    PALETTE,
+    samePhoto,
+    type Manifest,
+    type Photo,
+    type StarredPlace,
+  } from '../../data/travel';
 
   export let authed = false;
   export let configured = false;
@@ -68,11 +80,11 @@
 
   function findQueueDups(q: QueueItem[], m: Manifest | null): Map<string, string> {
     const out = new Map<string, string>();
-    const uploaded = m ? Object.values(m.countries).flatMap((c) => c.photos.map((p) => ({ p, place: c.name }))) : [];
+    const uploaded = m ? allPhotos(m) : [];
     const earlier: QueueItem[] = [];
     for (const item of q) {
       if (item.status !== 'ready') continue;
-      const hit = uploaded.find(({ p }) => samePhoto(item, p));
+      const hit = uploaded.find(({ photo }) => samePhoto(item, photo));
       if (hit) out.set(item.key, `Already uploaded · ${hit.place}`);
       else if (earlier.some((e) => samePhoto(item, e))) out.set(item.key, 'Duplicate in this batch');
       earlier.push(item);
@@ -82,7 +94,7 @@
 
   function findUploadedDups(m: Manifest | null): Set<string> {
     const out = new Set<string>();
-    const all = m ? Object.values(m.countries).flatMap((c) => c.photos) : [];
+    const all = m ? allPhotos(m).map((x) => x.photo) : [];
     for (let i = 0; i < all.length; i++) {
       for (let j = i + 1; j < all.length; j++) {
         if (samePhoto(all[i], all[j])) {
@@ -102,6 +114,7 @@
   }
 
   function nameOf(id: string): string {
+    if (isHomeTarget(id)) return manifest?.starred?.find((s) => s.id === homeIdOf(id))?.name ?? 'Home base';
     return manifest?.countries[id]?.name ?? world?.regions.get(id)?.name ?? id;
   }
 
@@ -263,11 +276,13 @@
       if (gps && Number.isFinite(gps.latitude) && Number.isFinite(gps.longitude)) {
         item.lat = gps.latitude;
         item.lng = gps.longitude;
-        const hit = world ? findRegionAt(world, gps.latitude, gps.longitude) : null;
+        // Within 50 miles of a home base: tag it to that home base; otherwise its country / state.
+        const home = nearestHome(manifest?.starred, gps.latitude, gps.longitude);
+        const hit = home ? homeTarget(home.id) : world ? findRegionAt(world, gps.latitude, gps.longitude)?.id : null;
         if (hit) {
-          item.countryId = hit.id;
+          item.countryId = hit;
           item.detected = true;
-          lastCountry = hit.id;
+          lastCountry = hit;
         }
       }
       const date = meta?.DateTimeOriginal ?? meta?.CreateDate;
@@ -460,6 +475,7 @@
   }
 
   // ---------- starred places ----------
+  let openHome: string | null = null;
   let starName = '';
   let starNote = '';
   let starWhere = '';
@@ -518,8 +534,11 @@
   }
 
   async function removeStar(s: StarredPlace) {
+    const n = s.photos?.length ?? 0;
+    if (n && !confirm(`Remove ${s.name} and its ${n} ${n === 1 ? 'photo' : 'photos'}? This cannot be undone.`)) return;
     try {
       ({ manifest } = await api(`/api/admin/starred/${s.id}`, { method: 'DELETE' }));
+      if (openHome === s.id) openHome = null;
       flash(`Removed ${s.name}.`);
     } catch (err) {
       flash((err as Error).message);
@@ -539,10 +558,11 @@
     }
   }
 
-  async function makeCover(countryId: string, photo: Photo) {
-    const order = [photo.id, ...manifest!.countries[countryId].photos.filter((p) => p.id !== photo.id).map((p) => p.id)];
+  async function makeCover(placeKey: string, photos: Photo[], photo: Photo) {
+    const order = [photo.id, ...photos.filter((p) => p.id !== photo.id).map((p) => p.id)];
+    const url = isHomeTarget(placeKey) ? `/api/admin/starred/${homeIdOf(placeKey)}` : `/api/admin/countries/${placeKey}`;
     try {
-      ({ manifest } = await api(`/api/admin/countries/${countryId}`, { method: 'PATCH', body: JSON.stringify({ order }) }));
+      ({ manifest } = await api(url, { method: 'PATCH', body: JSON.stringify({ order }) }));
       flash('Cover photo updated.');
     } catch (err) {
       flash((err as Error).message);
@@ -560,6 +580,51 @@
 </script>
 
 <svelte:window on:dragover|preventDefault on:drop|preventDefault />
+
+<!-- Photos of one place (a country / US state, or a home base: placeKey "home:<id>"). -->
+{#snippet photoGrid(placeKey: string, photos: Photo[])}
+  <div class="photos">
+    {#each photos as p, i (p.id)}
+      <div class="ph">
+        <img src={p.thumb} alt={p.caption ?? ''} loading="lazy" />
+        {#if i === 0}<span class="cover-tag">cover</span>{/if}
+        {#if uploadedDups.has(p.id)}<span class="dup-tag">Possible duplicate</span>{/if}
+        <input
+          class="caption"
+          type="text"
+          value={p.caption ?? ''}
+          placeholder="Caption"
+          maxlength="200"
+          on:change={(e) => patchPhoto(p, { caption: e.currentTarget.value }, 'Caption saved.')}
+        />
+        <div class="ph-actions">
+          {#if i !== 0}<button class="ghost small" on:click={() => makeCover(placeKey, photos, p)}>Make cover</button>{/if}
+          {#if p.lat !== undefined && !isHomeTarget(placeKey)}
+            <button class="ghost small" on:click={() => patchPhoto(p, { showPin: !p.showPin })}>{p.showPin ? 'Hide pin' : 'Show pin'}</button>
+          {/if}
+          <select
+            class="small"
+            value={placeKey}
+            on:change={(e) => patchPhoto(p, { countryId: e.currentTarget.value }, 'Photo moved.')}
+            aria-label="Move to another place"
+          >
+            {#if manifest?.starred?.length}
+              <optgroup label="Home bases">
+                {#each manifest.starred as hb (hb.id)}
+                  <option value={homeTarget(hb.id)}>{homeTarget(hb.id) === placeKey ? `In ${hb.name}` : `Move to ${hb.name}`}</option>
+                {/each}
+              </optgroup>
+            {/if}
+            <optgroup label="Countries and US states">
+              {#each [...(world?.states ?? []), ...(world?.countries ?? [])] as wc (wc.id)}<option value={wc.id}>{wc.id === placeKey ? `In ${wc.name}` : `Move to ${wc.name}`}</option>{/each}
+            </optgroup>
+          </select>
+          <button class="danger small" on:click={() => deletePhoto(p)}>Delete</button>
+        </div>
+      </div>
+    {/each}
+  </div>
+{/snippet}
 
 <main class="admin">
   {#if !configured}
@@ -641,6 +706,11 @@
                   <div class="q-row">
                     <select bind:value={item.countryId} on:change={() => pickPlace(item)} disabled={item.status !== 'ready'}>
                       <option value="" disabled>Choose a country or US state…</option>
+                      {#if manifest?.starred?.length}
+                        <optgroup label="Home bases">
+                          {#each manifest.starred as hb (hb.id)}<option value={homeTarget(hb.id)}>{hb.name}</option>{/each}
+                        </optgroup>
+                      {/if}
                       {#if visitedIds.length}
                         <optgroup label="Visited">
                           {#each visitedIds as id (id)}<option value={id}>{nameOf(id)}</option>{/each}
@@ -738,38 +808,7 @@
                   </div>
                   <button class="primary" on:click={saveCountry} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
 
-                  <div class="photos">
-                    {#each c.photos as p, i (p.id)}
-                      <div class="ph">
-                        <img src={p.thumb} alt={p.caption ?? ''} loading="lazy" />
-                        {#if i === 0}<span class="cover-tag">cover</span>{/if}
-                        {#if uploadedDups.has(p.id)}<span class="dup-tag">Possible duplicate</span>{/if}
-                        <input
-                          class="caption"
-                          type="text"
-                          value={p.caption ?? ''}
-                          placeholder="Caption"
-                          maxlength="200"
-                          on:change={(e) => patchPhoto(p, { caption: e.currentTarget.value }, 'Caption saved.')}
-                        />
-                        <div class="ph-actions">
-                          {#if i !== 0}<button class="ghost small" on:click={() => makeCover(id, p)}>Make cover</button>{/if}
-                          {#if p.lat !== undefined}
-                            <button class="ghost small" on:click={() => patchPhoto(p, { showPin: !p.showPin })}>{p.showPin ? 'Hide pin' : 'Show pin'}</button>
-                          {/if}
-                          <select
-                            class="small"
-                            value={id}
-                            on:change={(e) => patchPhoto(p, { countryId: e.currentTarget.value }, 'Photo moved.')}
-                            aria-label="Move to another country or state"
-                          >
-                            {#each [...(world?.states ?? []), ...(world?.countries ?? [])] as wc (wc.id)}<option value={wc.id}>{wc.id === id ? `In ${wc.name}` : `Move to ${wc.name}`}</option>{/each}
-                          </select>
-                          <button class="danger small" on:click={() => deletePhoto(p)}>Delete</button>
-                        </div>
-                      </div>
-                    {/each}
-                  </div>
+                  {@render photoGrid(id, c.photos)}
                 </div>
               {/if}
             </li>
@@ -780,7 +819,7 @@
 
     <section class="card">
       <h2>Home bases <span class="muted">({manifest?.starred?.length ?? 0})</span></h2>
-      <p class="muted small">Places you've lived or been many times. They get a glowing marker on the globe instead of a date.</p>
+      <p class="muted small">Places you've lived or been many times. They get a glowing marker on the globe instead of a date, and their own photos: photos taken within 50 miles are tagged to them automatically.</p>
 
       {#if manifest?.starred?.length}
         <ul class="starred">
@@ -807,7 +846,19 @@
                 on:change={(e) => patchStar(s, { note: e.currentTarget.value })}
               />
               <span class="muted small star-where">{world ? findRegionAt(world, s.lat, s.lng)?.name ?? '' : ''}</span>
+              <button
+                class="ghost small"
+                on:click={() => (openHome = openHome === s.id ? null : s.id)}
+                disabled={!s.photos?.length}
+                aria-expanded={openHome === s.id}
+              >
+                {s.photos?.length ?? 0} {s.photos?.length === 1 ? 'photo' : 'photos'}{s.photos?.length ? (openHome === s.id ? ' −' : ' +') : ''}
+              </button>
+              {#if s.photos?.some((p) => uploadedDups.has(p.id))}<span class="badge warn">possible duplicate</span>{/if}
               <button class="danger small" on:click={() => removeStar(s)}>Remove</button>
+              {#if openHome === s.id && s.photos?.length}
+                <div class="star-photos">{@render photoGrid(homeTarget(s.id), s.photos)}</div>
+              {/if}
             </li>
           {/each}
         </ul>
@@ -1337,6 +1388,9 @@
     gap: 8px;
   }
 
+  .star-photos {
+    flex-basis: 100%;
+  }
   .star-row {
     display: flex;
     flex-wrap: wrap;

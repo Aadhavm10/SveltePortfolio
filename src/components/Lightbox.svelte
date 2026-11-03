@@ -43,8 +43,12 @@
         // Don't let the same Escape also close whatever is underneath.
         e.stopImmediatePropagation();
         close();
-      } else if (e.key === 'ArrowLeft') prev();
-      else if (e.key === 'ArrowRight') next();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        // Arrows flip photos here, not the place underneath.
+        e.stopImmediatePropagation();
+        if (e.key === 'ArrowLeft') prev();
+        else next();
+      }
     }
     window.addEventListener('keydown', onKey, true);
     return () => {
