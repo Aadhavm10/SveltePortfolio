@@ -2,7 +2,8 @@
 import type { APIRoute } from 'astro';
 import { guard, json } from '../../../lib/server/auth';
 import { regionName } from '../../../lib/server/countryNames';
-import { deleteFiles, putFile, StoreNotConfiguredError, updateManifest } from '../../../lib/server/travelStore';
+import { deleteFiles, putFile, updateManifest } from '../../../lib/server/travelStore';
+import { storageFailure } from '../../../lib/server/storageErrors';
 import { nextColor, type Photo } from '../../../data/travel';
 
 export const prerender = false;
@@ -102,11 +103,6 @@ export const POST: APIRoute = async (ctx) => {
     return json({ manifest, photo });
   } catch (err) {
     await deleteFiles(uploaded).catch(() => {});
-    if (err instanceof StoreNotConfiguredError) return json({ error: err.message }, 503);
-    console.error('POST /api/admin/photos failed', err);
-    const msg = /access/i.test(String(err))
-      ? 'Storage refused the upload. Make sure the Vercel Blob store is set to Public.'
-      : 'Upload failed. Please try again.';
-    return json({ error: msg }, 500);
+    return storageFailure('POST /api/admin/photos', err);
   }
 };

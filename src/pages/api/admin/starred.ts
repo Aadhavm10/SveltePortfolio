@@ -1,7 +1,8 @@
 // Add a home base (lived there / been many times): a glowing marker on the globe, no date.
 import type { APIRoute } from 'astro';
 import { guard, json } from '../../../lib/server/auth';
-import { StoreNotConfiguredError, updateManifest } from '../../../lib/server/travelStore';
+import { updateManifest } from '../../../lib/server/travelStore';
+import { storageFailure } from '../../../lib/server/storageErrors';
 import { MAX_STARRED, type StarredPlace } from '../../../data/travel';
 
 export const prerender = false;
@@ -46,8 +47,6 @@ export const POST: APIRoute = async (ctx) => {
     return json({ manifest });
   } catch (err) {
     if (err instanceof TooMany) return json({ error: `You can star up to ${MAX_STARRED} places.` }, 400);
-    if (err instanceof StoreNotConfiguredError) return json({ error: err.message }, 503);
-    console.error('POST /api/admin/starred failed', err);
-    return json({ error: 'Something went wrong. Please try again.' }, 500);
+    return storageFailure('POST /api/admin/starred', err);
   }
 };
