@@ -28,7 +28,7 @@ export interface CountryEntry {
   photos: Photo[];
 }
 
-/** A place lived in / visited many times: shown as a gold star on the globe, with no date. */
+/** A place lived in / visited many times ("home base"): a glowing marker on the globe, no date. */
 export interface StarredPlace {
   id: string;
   name: string;

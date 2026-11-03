@@ -1,4 +1,4 @@
-// Add a starred place (lived there / been many times): a gold star on the globe, no date.
+// Add a home base (lived there / been many times): a glowing marker on the globe, no date.
 import type { APIRoute } from 'astro';
 import { guard, json } from '../../../lib/server/auth';
 import { StoreNotConfiguredError, updateManifest } from '../../../lib/server/travelStore';

@@ -215,7 +215,7 @@
           <p class="count"><strong>{countryCount}</strong> {countryCount === 1 ? 'country' : 'countries'} visited</p>
         {/if}
         {#if starredCount}
-          <p class="legend"><span class="star-glyph" aria-hidden="true">★</span> lived here or been many times</p>
+          <p class="legend"><span class="beacon" aria-hidden="true"></span>lived here or been many times</p>
         {/if}
       </div>
     {/if}
@@ -237,7 +237,7 @@
 
   {#if hovered && hoveredStar && !selected}
     <div class="tip" style="left:{hovered.x}px; top:{hovered.y}px">
-      <span class="star-glyph" aria-hidden="true">★</span>
+      <span class="beacon" aria-hidden="true"></span>
       {hoveredStar.name}
       <span class="muted">· {hoveredStar.note ?? 'lived here or been many times'}{hoveredStar.regionId && manifest.countries[hoveredStar.regionId] ? ' · click to open' : ''}</span>
     </div>
@@ -404,11 +404,29 @@
     color: rgba(255, 255, 255, 0.6);
   }
 
-  .star-glyph {
-    color: #ffcc4d;
-    text-shadow: 0 0 10px rgba(255, 204, 77, 0.7);
-    font-size: 1.05em;
-    line-height: 1;
+  /* Small marker icon (white dot in a thin ring), matching the globe's home-base markers. */
+  .beacon {
+    position: relative;
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1.5px solid rgba(143, 211, 255, 0.85);
+    box-shadow: 0 0 8px rgba(143, 211, 255, 0.45);
+  }
+
+  .beacon::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 4px;
+    height: 4px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 5px 1px rgba(143, 211, 255, 0.9);
   }
 
   .count {

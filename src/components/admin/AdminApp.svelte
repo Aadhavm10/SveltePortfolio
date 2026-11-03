@@ -371,7 +371,7 @@
         method: 'POST',
         body: JSON.stringify({ name: starName, note: starNote, lat: starPoint.lat, lng: starPoint.lng }),
       }));
-      flash(`Starred ${starName.trim()}.`);
+      flash(`Added ${starName.trim()}.`);
       starName = '';
       starNote = '';
       starWhere = '';
@@ -613,14 +613,14 @@
     </section>
 
     <section class="card">
-      <h2>Starred places <span class="muted">({manifest?.starred?.length ?? 0})</span></h2>
-      <p class="muted small">Places you've lived or been many times. They get a gold star on the globe instead of a date.</p>
+      <h2>Home bases <span class="muted">({manifest?.starred?.length ?? 0})</span></h2>
+      <p class="muted small">Places you've lived or been many times. They get a glowing marker on the globe instead of a date.</p>
 
       {#if manifest?.starred?.length}
         <ul class="starred">
           {#each manifest.starred as s (s.id)}
             <li class="star-row">
-              <span class="star-icon" aria-hidden="true">★</span>
+              <span class="beacon" aria-hidden="true"></span>
               <input
                 id="star-name-{s.id}"
                 class="star-name"
@@ -675,7 +675,7 @@
         </p>
         {#if starError}<p class="error small">{starError}</p>{/if}
         <button class="primary" type="submit" disabled={!starName.trim() || !starPoint || starBusy}>
-          {starBusy ? 'Adding…' : '★ Add star'}
+          {starBusy ? 'Adding…' : 'Add place'}
         </button>
       </form>
     </section>
@@ -1130,14 +1130,33 @@
     gap: 8px 10px;
     padding: 10px 12px;
     border-radius: 12px;
-    background: rgba(255, 204, 77, 0.06);
-    border: 1px solid rgba(255, 204, 77, 0.22);
+    background: rgba(143, 211, 255, 0.05);
+    border: 1px solid rgba(143, 211, 255, 0.22);
   }
 
-  .star-icon {
-    color: #ffcc4d;
-    font-size: 18px;
-    text-shadow: 0 0 10px rgba(255, 204, 77, 0.7);
+  /* Small marker icon (white dot in a thin ring), matching the globe's home-base markers. */
+  .beacon {
+    position: relative;
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1.5px solid rgba(143, 211, 255, 0.85);
+    box-shadow: 0 0 8px rgba(143, 211, 255, 0.45);
+  }
+
+  .beacon::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 4px;
+    height: 4px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 5px 1px rgba(143, 211, 255, 0.9);
   }
 
   .star-row .star-name {
@@ -1177,7 +1196,7 @@
   }
 
   .star-region {
-    color: #ffe7a8;
+    color: #bfe6ff;
   }
 
   .star-form .primary {

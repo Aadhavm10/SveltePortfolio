@@ -87,7 +87,7 @@ export async function createGlobeScene(o: GlobeSceneOptions): Promise<GlobeScene
   scene.add(layer.group);
   let currentStarred = o.manifest.starred ?? [];
   let starred: StarredLayer = createStarredLayer(world, currentStarred, pixelRatio);
-  scene.add(starred.points);
+  scene.add(starred.group);
   o.onProgress?.(0.75);
   await nextFrame();
 
@@ -359,7 +359,7 @@ export async function createGlobeScene(o: GlobeSceneOptions): Promise<GlobeScene
       starred.dispose();
       currentStarred = m.starred ?? [];
       starred = createStarredLayer(world, currentStarred, pixelRatio);
-      scene.add(starred.points);
+      scene.add(starred.group);
       layer.setSelected(selected);
     },
 

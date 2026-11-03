@@ -46,7 +46,7 @@
     {#if stars.length}
       <ul class="stars" aria-label="Places I've lived or been many times">
         {#each stars as s (s.name)}
-          <li><span class="star" aria-hidden="true">★</span>{s.name}{#if s.note}<span class="note"> · {s.note}</span>{/if}</li>
+          <li><span class="beacon" aria-hidden="true"></span>{s.name}{#if s.note}<span class="note"> · {s.note}</span>{/if}</li>
         {/each}
       </ul>
     {/if}
@@ -181,19 +181,39 @@
     border-radius: 999px;
     font-size: 13px;
     font-weight: 600;
-    color: #ffe7a8;
-    background: rgba(255, 204, 77, 0.1);
-    border: 1px solid rgba(255, 204, 77, 0.4);
-  }
-
-  .stars .star {
-    color: #ffcc4d;
-    text-shadow: 0 0 10px rgba(255, 204, 77, 0.8);
+    color: #fff;
+    background: rgba(143, 211, 255, 0.08);
+    border: 1px solid rgba(143, 211, 255, 0.32);
   }
 
   .stars .note {
     font-weight: 500;
-    color: rgba(255, 231, 168, 0.75);
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  /* Small marker icon (white dot in a thin ring), matching the globe's home-base markers. */
+  .beacon {
+    position: relative;
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1.5px solid rgba(143, 211, 255, 0.85);
+    box-shadow: 0 0 8px rgba(143, 211, 255, 0.45);
+  }
+
+  .beacon::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 4px;
+    height: 4px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 5px 1px rgba(143, 211, 255, 0.9);
   }
 
   .when {
