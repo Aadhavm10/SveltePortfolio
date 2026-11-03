@@ -277,6 +277,9 @@ export async function createGlobeScene(o: GlobeSceneOptions): Promise<GlobeScene
   canvas.addEventListener('pointerdown', onPointerDown);
   canvas.addEventListener('pointerup', onPointerUp);
   canvas.addEventListener('pointerleave', onPointerLeave);
+  // Mobile browsers can drop the WebGL context in the background; preventDefault lets it be restored.
+  const onContextLost = (e: Event) => e.preventDefault();
+  canvas.addEventListener('webglcontextlost', onContextLost);
 
   function processHover() {
     const e = pendingMove;
@@ -375,6 +378,7 @@ export async function createGlobeScene(o: GlobeSceneOptions): Promise<GlobeScene
       canvas.removeEventListener('pointerdown', onPointerDown);
       canvas.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('pointerleave', onPointerLeave);
+      canvas.removeEventListener('webglcontextlost', onContextLost);
       controls.dispose();
       layer.dispose();
       body.dispose();

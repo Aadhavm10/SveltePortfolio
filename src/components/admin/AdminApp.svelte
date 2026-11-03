@@ -208,12 +208,13 @@
       showPin: true,
     }));
     queue = [...queue, ...items];
-    // Two at a time keeps memory sane on phones with 48MP photos.
+    // Two at a time on computers; one at a time on phones, where decoding 48MP photos can run out of memory.
     const pending = [...items];
     const worker = async () => {
       for (let it = pending.shift(); it; it = pending.shift()) await processItem(it);
     };
-    await Promise.all([worker(), worker()]);
+    const lowMemory = matchMedia('(pointer: coarse)').matches;
+    await Promise.all(lowMemory ? [worker()] : [worker(), worker()]);
   }
 
   function removeItem(item: QueueItem) {

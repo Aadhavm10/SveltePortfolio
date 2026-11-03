@@ -222,7 +222,7 @@
     display: flex;
     justify-content: space-between;
     gap: 12px;
-    padding: 14px 24px 18px;
+    padding: 14px 24px calc(18px + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid rgba(255, 255, 255, 0.08);
   }
 

@@ -8,6 +8,7 @@
     orderedCountryIds,
     isStateId,
     shortName,
+    US_ID,
     US_NAME,
     type Manifest,
   } from '../../data/travel';
@@ -27,6 +28,8 @@
 
   $: ids = orderedCountryIds(manifest);
   $: total = ids.length;
+  // US states roll up into one country for the count.
+  $: countryCount = new Set(ids.map((id) => (isStateId(id) ? US_ID : id))).size;
   $: selected = selectedId ? manifest.countries[selectedId] ?? null : null;
   $: selectedIndex = selectedId ? ids.indexOf(selectedId) : -1;
   $: hoveredCountry = hovered ? manifest.countries[hovered.id] ?? null : null;
@@ -189,6 +192,9 @@
 
   <div class="hero" class:show={ready} class:hidden={!!selected}>
     <h1>Aadhav Manimurugan</h1>
+    {#if countryCount}
+      <p class="count"><strong>{countryCount}</strong> {countryCount === 1 ? 'country' : 'countries'} visited</p>
+    {/if}
     {#if total}
       <!-- Hidden visually (the globe is the way in) but kept for keyboard and screen-reader users,
            and shown as a fallback when the 3D globe can't start. -->
@@ -261,8 +267,8 @@
 
   .hero {
     position: absolute;
-    left: clamp(1.25rem, 4vw, 3rem);
-    bottom: clamp(1.5rem, 5vh, 3rem);
+    left: calc(clamp(1.25rem, 4vw, 3rem) + env(safe-area-inset-left, 0px));
+    bottom: calc(clamp(1.5rem, 5vh, 3rem) + env(safe-area-inset-bottom, 0px));
     max-width: min(560px, 90vw);
     color: #fff;
     z-index: 10;
@@ -349,6 +355,29 @@
     display: inline-block;
     box-shadow: 0 0 10px currentColor;
     flex-shrink: 0;
+  }
+
+  .count {
+    margin-top: 14px;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    color: rgba(255, 255, 255, 0.72);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .count strong {
+    color: #fff;
+    font-size: 15px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
   }
 
   .hint {

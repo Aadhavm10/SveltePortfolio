@@ -111,8 +111,8 @@
 
   .lb-close {
     position: fixed;
-    top: 20px;
-    right: 24px;
+    top: calc(20px + env(safe-area-inset-top, 0px));
+    right: calc(24px + env(safe-area-inset-right, 0px));
     background: rgba(255, 255, 255, 0.12);
     border: none;
     color: #fff;
@@ -151,14 +151,14 @@
     line-height: 1;
   }
 
-  .lb-prev { left: 16px; }
-  .lb-next { right: 16px; }
+  .lb-prev { left: calc(16px + env(safe-area-inset-left, 0px)); }
+  .lb-next { right: calc(16px + env(safe-area-inset-right, 0px)); }
   .lb-prev:hover,
   .lb-next:hover { background: rgba(255, 255, 255, 0.25); }
 
   .lb-counter {
     position: fixed;
-    bottom: 20px;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
     left: 50%;
     transform: translateX(-50%);
     color: rgba(255, 255, 255, 0.6);
