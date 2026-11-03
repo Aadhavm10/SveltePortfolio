@@ -28,9 +28,24 @@ export interface CountryEntry {
   photos: Photo[];
 }
 
+/** A place lived in / visited many times: shown as a gold star on the globe, with no date. */
+export interface StarredPlace {
+  id: string;
+  name: string;
+  /** Optional short note, e.g. "Home". */
+  note?: string;
+  /** City-level position, rounded to 0.01° (~1km). */
+  lat: number;
+  lng: number;
+}
+
+export const MAX_STARRED = 50;
+
 export interface Manifest {
   version: 1;
   updatedAt: string;
+  /** Starred places (optional so older manifests still load). */
+  starred?: StarredPlace[];
   /** Keyed by region id: a country ("124") or a US state ("us-48"). See REGION_ID_RE. */
   countries: Record<string, CountryEntry>;
 }

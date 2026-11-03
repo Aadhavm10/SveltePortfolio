@@ -290,6 +290,8 @@ export function createVisitedLayer(world: World, manifest: Manifest, pixelRatio:
     const pins = entry.photos
       .filter((p) => p.showPin && p.lat !== undefined && p.lng !== undefined)
       .map((p) => ({ lat: p.lat!, lng: p.lng! }))
+      // A starred place already marks that spot; don't stack a pin under the star.
+      .filter((p) => !(manifest.starred ?? []).some((s) => Math.abs(s.lat - p.lat) < 0.25 && Math.abs(s.lng - p.lng) < 0.25))
       .filter((p) => {
         const k = `${p.lat},${p.lng}`;
         if (seen.has(k)) return false;

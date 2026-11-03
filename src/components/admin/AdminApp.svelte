@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import exifr from 'exifr';
   import { findRegionAt, loadWorld, type World } from '../../lib/geo';
-  import { orderedCountryIds, PALETTE, type Manifest, type Photo } from '../../data/travel';
+  import { orderedCountryIds, PALETTE, type Manifest, type Photo, type StarredPlace } from '../../data/travel';
 
   export let authed = false;
   export let configured = false;
@@ -333,6 +333,73 @@
     }
   }
 
+  // ---------- starred places ----------
+  let starName = '';
+  let starNote = '';
+  let starWhere = '';
+  let starBusy = false;
+  let starError = '';
+
+  /** Accepts "32.78, -96.80" (what Google Maps copies) or "32.78 -96.80". */
+  function parseLatLng(text: string): { lat: number; lng: number } | null {
+    const m = text.trim().match(/^(-?\d+(?:\.\d+)?)\s*[,\s]\s*(-?\d+(?:\.\d+)?)$/);
+    if (!m) return null;
+    const lat = Number(m[1]);
+    const lng = Number(m[2]);
+    return Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null;
+  }
+
+  $: starPoint = parseLatLng(starWhere);
+  $: starRegion = starPoint && world ? findRegionAt(world, starPoint.lat, starPoint.lng)?.name ?? 'not inside a country' : null;
+  $: photoSpots = manifest
+    ? Object.values(manifest.countries).flatMap((c) =>
+        c.photos
+          .filter((ph) => ph.lat !== undefined && ph.lng !== undefined)
+          .map((ph) => ({
+            value: `${ph.lat}, ${ph.lng}`,
+            label: [c.name, ph.caption, ph.takenAt ? new Date(ph.takenAt).toLocaleDateString() : null].filter(Boolean).join(' · '),
+          }))
+      )
+    : [];
+
+  async function addStar() {
+    if (!starName.trim() || !starPoint || starBusy) return;
+    starBusy = true;
+    starError = '';
+    try {
+      ({ manifest } = await api('/api/admin/starred', {
+        method: 'POST',
+        body: JSON.stringify({ name: starName, note: starNote, lat: starPoint.lat, lng: starPoint.lng }),
+      }));
+      flash(`Starred ${starName.trim()}.`);
+      starName = '';
+      starNote = '';
+      starWhere = '';
+    } catch (err) {
+      starError = (err as Error).message;
+    } finally {
+      starBusy = false;
+    }
+  }
+
+  async function patchStar(s: StarredPlace, body: { name?: string; note?: string }) {
+    try {
+      ({ manifest } = await api(`/api/admin/starred/${s.id}`, { method: 'PATCH', body: JSON.stringify(body) }));
+      flash('Saved.');
+    } catch (err) {
+      flash((err as Error).message);
+    }
+  }
+
+  async function removeStar(s: StarredPlace) {
+    try {
+      ({ manifest } = await api(`/api/admin/starred/${s.id}`, { method: 'DELETE' }));
+      flash(`Removed ${s.name}.`);
+    } catch (err) {
+      flash((err as Error).message);
+    }
+  }
+
   async function makeCover(countryId: string, photo: Photo) {
     const order = [photo.id, ...manifest!.countries[countryId].photos.filter((p) => p.id !== photo.id).map((p) => p.id)];
     try {
@@ -543,6 +610,74 @@
           {/each}
         </ul>
       {/if}
+    </section>
+
+    <section class="card">
+      <h2>Starred places <span class="muted">({manifest?.starred?.length ?? 0})</span></h2>
+      <p class="muted small">Places you've lived or been many times. They get a gold star on the globe instead of a date.</p>
+
+      {#if manifest?.starred?.length}
+        <ul class="starred">
+          {#each manifest.starred as s (s.id)}
+            <li class="star-row">
+              <span class="star-icon" aria-hidden="true">★</span>
+              <input
+                id="star-name-{s.id}"
+                class="star-name"
+                type="text"
+                value={s.name}
+                maxlength="60"
+                aria-label="Name"
+                on:change={(e) => patchStar(s, { name: e.currentTarget.value })}
+              />
+              <input
+                id="star-note-{s.id}"
+                class="star-note"
+                type="text"
+                value={s.note ?? ''}
+                placeholder="Note, e.g. Home"
+                maxlength="60"
+                aria-label="Note"
+                on:change={(e) => patchStar(s, { note: e.currentTarget.value })}
+              />
+              <span class="muted small star-where">{world ? findRegionAt(world, s.lat, s.lng)?.name ?? '' : ''}</span>
+              <button class="danger small" on:click={() => removeStar(s)}>Remove</button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+
+      <form class="star-form" on:submit|preventDefault={addStar}>
+        <div class="star-fields">
+          <label for="new-star-name">Name<input id="new-star-name" type="text" bind:value={starName} placeholder="e.g. Dallas" maxlength="60" /></label>
+          <label for="new-star-note">Note (optional)<input id="new-star-note" type="text" bind:value={starNote} placeholder="e.g. Home" maxlength="60" /></label>
+        </div>
+        <label for="new-star-where">Location
+          <input id="new-star-where" type="text" bind:value={starWhere} placeholder="32.78, -96.80" autocomplete="off" />
+        </label>
+        {#if photoSpots.length}
+          <label for="new-star-photo">Or use where one of your photos was taken
+            <select
+              id="new-star-photo"
+              on:change={(e) => {
+                if (e.currentTarget.value) starWhere = e.currentTarget.value;
+                e.currentTarget.value = '';
+              }}
+            >
+              <option value="">Pick a photo…</option>
+              {#each photoSpots as spot}<option value={spot.value}>{spot.label}</option>{/each}
+            </select>
+          </label>
+        {/if}
+        <p class="muted small">
+          Tip: in Google Maps, right-click a spot and click the numbers at the top to copy them.
+          {#if starRegion}<span class="star-region">Lands in {starRegion}.</span>{/if}
+        </p>
+        {#if starError}<p class="error small">{starError}</p>{/if}
+        <button class="primary" type="submit" disabled={!starName.trim() || !starPoint || starBusy}>
+          {starBusy ? 'Adding…' : '★ Add star'}
+        </button>
+      </form>
     </section>
   {/if}
 
@@ -978,6 +1113,75 @@
     gap: 6px;
     flex-wrap: wrap;
     align-items: center;
+  }
+
+  .starred {
+    list-style: none;
+    margin: 14px 0 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .star-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255, 204, 77, 0.06);
+    border: 1px solid rgba(255, 204, 77, 0.22);
+  }
+
+  .star-icon {
+    color: #ffcc4d;
+    font-size: 18px;
+    text-shadow: 0 0 10px rgba(255, 204, 77, 0.7);
+  }
+
+  .star-row .star-name {
+    flex: 1 1 140px;
+    min-width: 0;
+    font-weight: 700;
+  }
+
+  .star-row .star-note {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+
+  .star-where {
+    min-width: 0;
+  }
+
+  .star-form {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .star-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .star-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+
+  .star-region {
+    color: #ffe7a8;
+  }
+
+  .star-form .primary {
+    align-self: flex-start;
   }
 
   .toast {

@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import CountryPanel from './CountryPanel.svelte';
   import { loaderControl } from './loaderControl';
-  import { loadWorld } from '../../lib/geo';
+  import { findRegionAt, loadWorld, type World } from '../../lib/geo';
   import {
     emptyManifest,
     orderedCountryIds,
@@ -11,8 +11,9 @@
     US_ID,
     US_NAME,
     type Manifest,
+    type StarredPlace,
   } from '../../data/travel';
-  import type { GlobeScene } from './scene';
+  import type { GlobeScene, HoverTarget } from './scene';
 
   let container: HTMLDivElement;
   let canvas: HTMLCanvasElement;
@@ -22,7 +23,8 @@
   let noWebGL = false;
   let mobile = false;
   let touch = false;
-  let hovered: { id: string; x: number; y: number } | null = null;
+  let hovered: { target: HoverTarget; x: number; y: number } | null = null;
+  let world: World | null = null;
   let selectedId: string | null = null;
   let destroyed = false;
 
@@ -32,7 +34,21 @@
   $: countryCount = new Set(ids.map((id) => (isStateId(id) ? US_ID : id))).size;
   $: selected = selectedId ? manifest.countries[selectedId] ?? null : null;
   $: selectedIndex = selectedId ? ids.indexOf(selectedId) : -1;
-  $: hoveredCountry = hovered ? manifest.countries[hovered.id] ?? null : null;
+  $: hoveredCountry = hovered?.target.kind === 'region' ? manifest.countries[hovered.target.id] ?? null : null;
+  $: hoveredStar = hovered?.target.kind === 'star' ? hovered.target : null;
+  $: starredCount = manifest.starred?.length ?? 0;
+  // Starred places grouped by the country / US state they're in (shown in that place's panel).
+  $: starsByRegion = groupStars(world, manifest.starred ?? []);
+
+  function groupStars(w: World | null, places: StarredPlace[]): Map<string, StarredPlace[]> {
+    const out = new Map<string, StarredPlace[]>();
+    if (!w) return out;
+    for (const s of places) {
+      const id = findRegionAt(w, s.lat, s.lng)?.id;
+      if (id) out.set(id, [...(out.get(id) ?? []), s]);
+    }
+    return out;
+  }
   $: if (typeof document !== 'undefined') document.body.classList.toggle('globe-panel-open', !!selected);
 
   function panelInfo() {
@@ -136,7 +152,8 @@
     });
 
     try {
-      const [world, m, mod] = await Promise.all([worldPromise, manifestPromise, modulePromise]);
+      const [loadedWorld, m, mod] = await Promise.all([worldPromise, manifestPromise, modulePromise]);
+      world = loadedWorld;
       if (destroyed) return;
       manifest = m;
       report('raising countries…');
@@ -144,7 +161,7 @@
         scene = await mod.createGlobeScene({
           canvas,
           container,
-          world,
+          world: loadedWorld,
           manifest: m,
           reducedMotion,
           topologyUrl: '/textures/earth-topology.webp',
@@ -152,7 +169,7 @@
             buildP = f;
             report();
           },
-          onHover: (id, x, y) => (hovered = id && !selectedId ? { id, x, y } : null),
+          onHover: (target, x, y) => (hovered = target && !selectedId ? { target, x, y } : null),
           onSelect: (id) => select(id),
         });
         if (destroyed) {
@@ -192,8 +209,15 @@
 
   <div class="hero" class:show={ready} class:hidden={!!selected}>
     <h1>Aadhav Manimurugan</h1>
-    {#if countryCount}
-      <p class="count"><strong>{countryCount}</strong> {countryCount === 1 ? 'country' : 'countries'} visited</p>
+    {#if countryCount || starredCount}
+      <div class="meta">
+        {#if countryCount}
+          <p class="count"><strong>{countryCount}</strong> {countryCount === 1 ? 'country' : 'countries'} visited</p>
+        {/if}
+        {#if starredCount}
+          <p class="legend"><span class="star-glyph" aria-hidden="true">★</span> lived here or been many times</p>
+        {/if}
+      </div>
     {/if}
     {#if total}
       <!-- Hidden visually (the globe is the way in) but kept for keyboard and screen-reader users,
@@ -211,7 +235,13 @@
     {/if}
   </div>
 
-  {#if hovered && hoveredCountry && !selected}
+  {#if hovered && hoveredStar && !selected}
+    <div class="tip" style="left:{hovered.x}px; top:{hovered.y}px">
+      <span class="star-glyph" aria-hidden="true">★</span>
+      {hoveredStar.name}
+      <span class="muted">· {hoveredStar.note ?? 'lived here or been many times'}{hoveredStar.regionId && manifest.countries[hoveredStar.regionId] ? ' · click to open' : ''}</span>
+    </div>
+  {:else if hovered && hoveredCountry && !selected}
     <div class="tip" style="left:{hovered.x}px; top:{hovered.y}px">
       <span class="dot" style="background:{hoveredCountry.color}; color:{hoveredCountry.color}"></span>
       {hoveredCountry.name}
@@ -225,6 +255,7 @@
         index={selectedIndex}
         total={ids.length}
         parentName={selectedId && isStateId(selectedId) ? US_NAME : null}
+        stars={starsByRegion.get(selectedId) ?? []}
         {prevName}
         {nextName}
         {mobile}
@@ -357,8 +388,30 @@
     flex-shrink: 0;
   }
 
-  .count {
+  .meta {
     margin-top: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+  }
+
+  .legend {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .star-glyph {
+    color: #ffcc4d;
+    text-shadow: 0 0 10px rgba(255, 204, 77, 0.7);
+    font-size: 1.05em;
+    line-height: 1;
+  }
+
+  .count {
     display: inline-flex;
     align-items: baseline;
     gap: 6px;

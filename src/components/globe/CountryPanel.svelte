@@ -9,6 +9,8 @@
   export let total = 1;
   /** e.g. "United States" when the place is a US state. */
   export let parentName: string | null = null;
+  /** Starred places inside this country / state (lived there, or been many times). */
+  export let stars: { name: string; note?: string }[] = [];
   export let prevName: string | null = null;
   export let nextName: string | null = null;
   export let mobile = false;
@@ -41,6 +43,13 @@
   <div class="scroll" bind:this={scroller}>
     <p class="kicker">{parentName ? `${parentName} · ` : ''}{index + 1} of {total}</p>
     <h2>{country.name}</h2>
+    {#if stars.length}
+      <ul class="stars" aria-label="Places I've lived or been many times">
+        {#each stars as s (s.name)}
+          <li><span class="star" aria-hidden="true">★</span>{s.name}{#if s.note}<span class="note"> · {s.note}</span>{/if}</li>
+        {/each}
+      </ul>
+    {/if}
     {#if country.when}<p class="when">{country.when}</p>{/if}
     {#if country.blurb}<p class="blurb">{country.blurb}</p>{/if}
 
@@ -154,6 +163,37 @@
     line-height: 1.05;
     margin-top: 6px;
     padding-right: 48px;
+  }
+
+  .stars {
+    list-style: none;
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .stars li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px 5px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #ffe7a8;
+    background: rgba(255, 204, 77, 0.1);
+    border: 1px solid rgba(255, 204, 77, 0.4);
+  }
+
+  .stars .star {
+    color: #ffcc4d;
+    text-shadow: 0 0 10px rgba(255, 204, 77, 0.8);
+  }
+
+  .stars .note {
+    font-weight: 500;
+    color: rgba(255, 231, 168, 0.75);
   }
 
   .when {
