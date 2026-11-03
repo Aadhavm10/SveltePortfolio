@@ -9,8 +9,9 @@
   export let total = 1;
   /** e.g. "United States" when the place is a US state. */
   export let parentName: string | null = null;
-  /** Starred places inside this country / state (lived there, or been many times). */
-  export let stars: { name: string; note?: string }[] = [];
+  /** Home bases inside this country / state (lived there, or been many times). */
+  export let stars: { id: string; name: string; note?: string; count: number }[] = [];
+  export let onStar: (id: string) => void = () => {};
   export let prevName: string | null = null;
   export let nextName: string | null = null;
   export let mobile = false;
@@ -45,8 +46,16 @@
     <h2>{country.name}</h2>
     {#if stars.length}
       <ul class="stars" aria-label="Places I've lived or been many times">
-        {#each stars as s (s.name)}
-          <li><span class="beacon" aria-hidden="true"></span>{s.name}{#if s.note}<span class="note"> · {s.note}</span>{/if}</li>
+        {#each stars as s (s.id)}
+          <li>
+            {#if s.count}
+              <button class="star-link" on:click={() => onStar(s.id)} aria-label="Open {s.name}: {s.count} {s.count === 1 ? 'photo' : 'photos'}">
+                <span class="beacon" aria-hidden="true"></span>{s.name}{#if s.note}<span class="note"> · {s.note}</span>{/if}<span class="note"> · {s.count} {s.count === 1 ? 'photo' : 'photos'} ›</span>
+              </button>
+            {:else}
+              <span class="star-label"><span class="beacon" aria-hidden="true"></span>{s.name}{#if s.note}<span class="note"> · {s.note}</span>{/if}</span>
+            {/if}
+          </li>
         {/each}
       </ul>
     {/if}
@@ -65,8 +74,8 @@
 
   {#if total > 1}
     <nav class="nav">
-      <button on:click={onPrev}>‹ {prevName}</button>
-      <button on:click={onNext}>{nextName} ›</button>
+      <button on:click={onPrev} aria-keyshortcuts="ArrowLeft" title="Previous place (←)">‹ {prevName}</button>
+      <button on:click={onNext} aria-keyshortcuts="ArrowRight" title="Next place (→)">{nextName} ›</button>
     </nav>
   {/if}
 </aside>
@@ -167,23 +176,37 @@
 
   .stars {
     list-style: none;
+    padding: 0;
     margin-top: 10px;
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
   }
 
-  .stars li {
+  .star-label,
+  .star-link {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     padding: 5px 12px 5px 10px;
     border-radius: 999px;
+    font: inherit;
     font-size: 13px;
     font-weight: 600;
     color: #fff;
     background: rgba(143, 211, 255, 0.08);
     border: 1px solid rgba(143, 211, 255, 0.32);
+  }
+
+  .star-link {
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+
+  .star-link:hover,
+  .star-link:focus-visible {
+    background: rgba(143, 211, 255, 0.18);
+    border-color: rgba(143, 211, 255, 0.6);
   }
 
   .stars .note {

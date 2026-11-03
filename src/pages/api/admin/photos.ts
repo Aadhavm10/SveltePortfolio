@@ -1,10 +1,10 @@
-// Add a photo (already resized + EXIF-stripped in the browser) to a country.
+// Add a photo (already resized + EXIF-stripped in the browser) to a country, US state or home base.
 import type { APIRoute } from 'astro';
 import { guard, json } from '../../../lib/server/auth';
-import { regionName } from '../../../lib/server/countryNames';
 import { deleteFiles, putFile, updateManifest } from '../../../lib/server/travelStore';
 import { storageFailure } from '../../../lib/server/storageErrors';
-import { nextColor, type Photo } from '../../../data/travel';
+import { MissingHomeError, parseTarget, photosAt, targetFolder } from '../../../lib/server/photoPlaces';
+import type { Photo } from '../../../data/travel';
 
 export const prerender = false;
 
@@ -38,9 +38,9 @@ export const POST: APIRoute = async (ctx) => {
     return json({ error: 'Upload was too large or malformed.' }, 400);
   }
 
-  const countryId = String(form.get('countryId') ?? '');
-  const name = regionName(countryId);
-  if (!name) return json({ error: 'Pick a valid country or US state.' }, 400);
+  const target = parseTarget(form.get('countryId'));
+  if (!target) return json({ error: 'Pick a valid country, US state or home base.' }, 400);
+  const folder = targetFolder(target);
 
   const full = form.get('full');
   const thumb = form.get('thumb');
@@ -66,15 +66,17 @@ export const POST: APIRoute = async (ctx) => {
       : undefined;
   const caption = String(form.get('caption') ?? '').trim().slice(0, 200) || undefined;
   const showPin = form.get('showPin') !== '0';
+  const dhashRaw = form.get('dhash');
+  const dhash = typeof dhashRaw === 'string' && /^[0-9a-f]{16}$/.test(dhashRaw) ? dhashRaw : undefined;
 
   const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   const mime = (k: 'webp' | 'jpg') => (k === 'webp' ? 'image/webp' : 'image/jpeg');
 
   const uploaded: string[] = [];
   try {
-    const fullUrl = await putFile(`travel/photos/${countryId}/${id}-full.${fullKind}`, full, mime(fullKind));
+    const fullUrl = await putFile(`travel/photos/${folder}/${id}-full.${fullKind}`, full, mime(fullKind));
     uploaded.push(fullUrl);
-    const thumbUrl = await putFile(`travel/photos/${countryId}/${id}-thumb.${thumbKind}`, thumb, mime(thumbKind));
+    const thumbUrl = await putFile(`travel/photos/${folder}/${id}-thumb.${thumbKind}`, thumb, mime(thumbKind));
     uploaded.push(thumbUrl);
 
     const photo: Photo = {
@@ -86,23 +88,17 @@ export const POST: APIRoute = async (ctx) => {
       takenAt,
       caption,
       showPin,
+      ...(dhash ? { dhash } : {}),
       ...(hasCoords ? { lat: round1(lat!), lng: round1(lng!) } : {}),
     };
 
     const { manifest } = await updateManifest((m) => {
-      if (!m.countries[countryId]) {
-        m.countries[countryId] = {
-          name,
-          color: nextColor(m),
-          addedAt: new Date().toISOString(),
-          photos: [],
-        };
-      }
-      m.countries[countryId].photos.push(photo);
+      photosAt(m, target).push(photo);
     });
     return json({ manifest, photo });
   } catch (err) {
     await deleteFiles(uploaded).catch(() => {});
+    if (err instanceof MissingHomeError) return json({ error: err.message }, 404);
     return storageFailure('POST /api/admin/photos', err);
   }
 };

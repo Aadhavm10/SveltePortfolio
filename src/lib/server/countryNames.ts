@@ -8,7 +8,7 @@ type Geometry = { id?: string; properties?: { name?: string } };
 type Topo = { objects: Record<string, { geometries: Geometry[] }> };
 
 // Territories world-atlas already has as countries (Puerto Rico, Guam, …).
-const SKIP_STATE_FIPS = new Set(['60', '66', '69', '72', '78']);
+export const SKIP_STATE_FIPS = new Set(['60', '66', '69', '72', '78']);
 
 const names = new Map<string, string>();
 for (const g of (world as unknown as Topo).objects.countries.geometries) {

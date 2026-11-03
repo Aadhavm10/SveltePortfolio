@@ -5,11 +5,16 @@
   import { findRegionAt, loadWorld, type World } from '../../lib/geo';
   import {
     emptyManifest,
+    HOME_COLOR,
+    homeIdOf,
+    homeTarget,
+    isHomeTarget,
     orderedCountryIds,
     isStateId,
     shortName,
     US_ID,
     US_NAME,
+    type CountryEntry,
     type Manifest,
     type StarredPlace,
   } from '../../data/travel';
@@ -28,17 +33,41 @@
   let selectedId: string | null = null;
   let destroyed = false;
 
-  $: ids = orderedCountryIds(manifest);
+  // Home bases with photos come first ("home:<id>"), then countries / states in journey order.
+  $: regionIds = orderedCountryIds(manifest);
+  $: ids = [...(manifest.starred ?? []).filter((s) => s.photos?.length).map((s) => homeTarget(s.id)), ...regionIds];
   $: total = ids.length;
-  // US states roll up into one country for the count.
-  $: countryCount = new Set(ids.map((id) => (isStateId(id) ? US_ID : id))).size;
-  $: selected = selectedId ? manifest.countries[selectedId] ?? null : null;
+  // Countries visited: places with photos plus where the home bases are; US states roll up into one.
+  $: countryCount = new Set([...regionIds, ...starsByRegion.keys()].map((id) => (isStateId(id) ? US_ID : id))).size;
+  $: selected = entryOf(manifest, selectedId);
   $: selectedIndex = selectedId ? ids.indexOf(selectedId) : -1;
+  $: selectedKicker = kickerFor(selectedId, world, manifest);
   $: hoveredCountry = hovered?.target.kind === 'region' ? manifest.countries[hovered.target.id] ?? null : null;
   $: hoveredStar = hovered?.target.kind === 'star' ? hovered.target : null;
+  $: hoveredStarPhotos = hoveredStar ? manifest.starred?.[hoveredStar.index]?.photos?.length ?? 0 : 0;
   $: starredCount = manifest.starred?.length ?? 0;
   // Starred places grouped by the country / US state they're in (shown in that place's panel).
   $: starsByRegion = groupStars(world, manifest.starred ?? []);
+
+  /** What the panel shows for a place: a country / state, or a home base with photos. */
+  function entryOf(m: Manifest, id: string | null): CountryEntry | null {
+    if (!id) return null;
+    if (isHomeTarget(id)) {
+      const s = m.starred?.find((x) => x.id === homeIdOf(id));
+      return s?.photos?.length ? { name: s.name, when: s.note, color: HOME_COLOR, addedAt: '', photos: s.photos } : null;
+    }
+    return m.countries[id] ?? null;
+  }
+
+  function kickerFor(id: string | null, w: World | null, m: Manifest): string | null {
+    if (!id) return null;
+    if (isHomeTarget(id)) {
+      const s = m.starred?.find((x) => x.id === homeIdOf(id));
+      const where = s && w ? findRegionAt(w, s.lat, s.lng)?.name : null;
+      return where ? `Home base · ${where}` : 'Home base';
+    }
+    return isStateId(id) ? US_NAME : null;
+  }
 
   function groupStars(w: World | null, places: StarredPlace[]): Map<string, StarredPlace[]> {
     const out = new Map<string, StarredPlace[]>();
@@ -57,7 +86,7 @@
   }
 
   function select(id: string | null) {
-    if (id && !manifest.countries[id]) id = null;
+    if (id && !entryOf(manifest, id)) id = null;
     if (id === selectedId) return;
     if (!id && !selectedId) return;
     selectedId = id;
@@ -75,7 +104,7 @@
   function nameAt(m: Manifest, list: string[], index: number, offset: number): string | null {
     if (index < 0 || list.length < 2) return null;
     const id = list[(index + offset + list.length) % list.length];
-    return m.countries[id]?.name ?? null;
+    return entryOf(m, id)?.name ?? null;
   }
   $: prevName = nameAt(manifest, ids, selectedIndex, -1);
   $: nextName = nameAt(manifest, ids, selectedIndex, 1);
@@ -94,7 +123,14 @@
   }
 
   function onKey(e: KeyboardEvent) {
-    if (e.key === 'Escape' && selectedId) select(null);
+    if (!selectedId) return;
+    if (e.key === 'Escape') select(null);
+    else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      // ← / → go to the previous / next place (the photo viewer handles its own arrows first).
+      if ((e.target as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+      e.preventDefault();
+      step(e.key === 'ArrowRight' ? 1 : -1);
+    }
   }
 
   onMount(() => {
@@ -224,9 +260,12 @@
            and shown as a fallback when the 3D globe can't start. -->
       <nav class="chips" class:sr-only={!noWebGL} aria-label="Places I've been">
         {#each ids as id (id)}
-          <button class="chip" style="--c:{manifest.countries[id].color}" on:click={() => select(id)}>
-            <span class="dot"></span>{shortName(id, manifest.countries[id].name)}
-          </button>
+          {@const entry = entryOf(manifest, id)}
+          {#if entry}
+            <button class="chip" style="--c:{entry.color}" on:click={() => select(id)}>
+              <span class="dot"></span>{isHomeTarget(id) ? entry.name : shortName(id, entry.name)}
+            </button>
+          {/if}
         {/each}
       </nav>
     {/if}
@@ -239,7 +278,7 @@
     <div class="tip" style="left:{hovered.x}px; top:{hovered.y}px">
       <span class="beacon" aria-hidden="true"></span>
       {hoveredStar.name}
-      <span class="muted">· {hoveredStar.note ?? 'lived here or been many times'}{hoveredStar.regionId && manifest.countries[hoveredStar.regionId] ? ' · click to open' : ''}</span>
+      <span class="muted">· {hoveredStar.note ?? 'lived here or been many times'}{hoveredStarPhotos ? ` · ${hoveredStarPhotos} ${hoveredStarPhotos === 1 ? 'photo' : 'photos'} · click to open` : hoveredStar.regionId && manifest.countries[hoveredStar.regionId] ? ' · click to open' : ''}</span>
     </div>
   {:else if hovered && hoveredCountry && !selected}
     <div class="tip" style="left:{hovered.x}px; top:{hovered.y}px">
@@ -254,8 +293,9 @@
         country={selected}
         index={selectedIndex}
         total={ids.length}
-        parentName={selectedId && isStateId(selectedId) ? US_NAME : null}
-        stars={starsByRegion.get(selectedId) ?? []}
+        parentName={selectedKicker}
+        stars={(starsByRegion.get(selectedId) ?? []).map((s) => ({ id: s.id, name: s.name, note: s.note, count: s.photos?.length ?? 0 }))}
+        onStar={(id) => select(homeTarget(id))}
         {prevName}
         {nextName}
         {mobile}

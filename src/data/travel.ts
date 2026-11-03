@@ -15,6 +15,8 @@ export interface Photo {
   lng?: number;
   caption?: string;
   showPin: boolean;
+  /** Fingerprint of the picture (64-bit difference hash, hex), used to spot a photo added twice. */
+  dhash?: string;
 }
 
 export interface CountryEntry {
@@ -37,9 +39,52 @@ export interface StarredPlace {
   /** City-level position, rounded to 0.01° (~1km). */
   lat: number;
   lng: number;
+  /** Photos tagged to this home base (shown in its own panel, not the state's / country's). */
+  photos?: Photo[];
 }
 
 export const MAX_STARRED = 50;
+
+// ---------- Home bases as a place photos can be tagged with ----------
+/** Upload / move target for a home base: "home:<starred id>" (regions use their region id). */
+export const HOME_PREFIX = 'home:';
+export const homeTarget = (starredId: string) => HOME_PREFIX + starredId;
+export const isHomeTarget = (target: string) => target.startsWith(HOME_PREFIX);
+export const homeIdOf = (target: string) => target.slice(HOME_PREFIX.length);
+/** Panel accent for home bases (same family as their marker on the globe). */
+export const HOME_COLOR = '#8fd3ff';
+/** Photos taken within this distance of a home base are tagged to it automatically (50 miles). */
+export const HOME_RADIUS_KM = 80.5;
+
+function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const rad = Math.PI / 180;
+  const a =
+    Math.sin(((lat2 - lat1) * rad) / 2) ** 2 +
+    Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(((lng2 - lng1) * rad) / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+/** The closest home base within HOME_RADIUS_KM of a spot, if any. */
+export function nearestHome(places: StarredPlace[] | undefined, lat: number, lng: number): StarredPlace | null {
+  let best: StarredPlace | null = null;
+  let bestKm = HOME_RADIUS_KM;
+  for (const s of places ?? []) {
+    const km = distanceKm(lat, lng, s.lat, s.lng);
+    if (km <= bestKm) {
+      best = s;
+      bestKm = km;
+    }
+  }
+  return best;
+}
+
+/** Every uploaded photo with the name of the place it's in (countries, states and home bases). */
+export function allPhotos(m: Manifest): { photo: Photo; place: string }[] {
+  return [
+    ...Object.values(m.countries).flatMap((c) => c.photos.map((photo) => ({ photo, place: c.name }))),
+    ...(m.starred ?? []).flatMap((s) => (s.photos ?? []).map((photo) => ({ photo, place: s.name }))),
+  ];
+}
 
 export interface Manifest {
   version: 1;
@@ -56,16 +101,23 @@ export const emptyManifest = (): Manifest => ({
   countries: {},
 });
 
-/** Site accent colours (same as the BubbleMenu hovers) + a few extras. */
+/**
+ * Place colours: 12 saturated hues spread around the colour wheel, so places that border each
+ * other can always get clearly different ones (see src/lib/server/placeColors.ts).
+ */
 export const PALETTE = [
-  '#ff6b6b',
-  '#4ecdc4',
-  '#ffe66d',
-  '#a8e6cf',
-  '#ff8b94',
-  '#b197fc',
-  '#ffa94d',
-  '#74c0fc',
+  '#ff5a5a', // red      0°
+  '#ff9a3c', // orange  29°
+  '#ffe03d', // yellow  50°
+  '#8ee63c', // lime    91°
+  '#45e65a', // green  128°
+  '#2ee6b0', // teal   162°
+  '#3cc8ff', // sky    197°
+  '#5b7cff', // blue   228°
+  '#9b6bff', // violet 259°
+  '#eb5cff', // purple 292°
+  '#ff4dc4', // magenta 320°
+  '#ff5c93', // pink   340°
 ];
 
 /** "Home" for the travel arcs. */
@@ -136,22 +188,35 @@ export function orderedCountryIds(m: Manifest): string[] {
 }
 
 /**
- * What the public globe gets: the same data, minus the location of any photo whose pin is hidden,
- * so turning a pin off really keeps that spot private.
+ * What the public globe gets: the same data, minus the location of any photo whose pin is hidden
+ * (so turning a pin off really keeps that spot private) and minus the uploader-only fingerprints.
  */
 export function publicManifest(m: Manifest): Manifest {
+  const clean = (photos: Photo[]) =>
+    photos.map(({ dhash: _fingerprint, ...p }) => (p.showPin ? p : { ...p, lat: undefined, lng: undefined }));
   const countries: Record<string, CountryEntry> = {};
-  for (const [id, c] of Object.entries(m.countries)) {
-    countries[id] = {
-      ...c,
-      photos: c.photos.map((p) => (p.showPin ? p : { ...p, lat: undefined, lng: undefined })),
-    };
-  }
-  return { ...m, countries };
+  for (const [id, c] of Object.entries(m.countries)) countries[id] = { ...c, photos: clean(c.photos) };
+  const starred = m.starred?.map((s) => (s.photos ? { ...s, photos: clean(s.photos) } : s));
+  return { ...m, countries, ...(starred ? { starred } : {}) };
 }
 
-/** Next palette colour that no visited country uses yet (cycles when all are taken). */
-export function nextColor(m: Manifest): string {
-  const used = new Set(Object.values(m.countries).map((c) => c.color));
-  return PALETTE.find((c) => !used.has(c)) ?? PALETTE[Object.keys(m.countries).length % PALETTE.length];
+// ---------- Spotting a photo added twice ----------
+const BITS = [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4];
+
+/** Number of differing bits between two hex fingerprints of the same length. */
+export function hexDistance(a: string, b: string): number {
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d += BITS[parseInt(a[i], 16) ^ parseInt(b[i], 16)];
+  return d;
+}
+
+type PhotoSig = Pick<Photo, 'dhash' | 'takenAt'> & { w?: number; h?: number };
+
+/**
+ * Whether two photos look like the same picture: fingerprints within 4 bits of each other, or,
+ * when either has no fingerprint (uploaded before they existed), the same capture time and size.
+ */
+export function samePhoto(a: PhotoSig, b: PhotoSig): boolean {
+  if (a.dhash && b.dhash) return hexDistance(a.dhash, b.dhash) <= 4;
+  return !!a.takenAt && a.takenAt === b.takenAt && a.w === b.w && a.h === b.h;
 }
