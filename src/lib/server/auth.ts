@@ -8,6 +8,39 @@ const COOKIE = 'am_admin';
 const MAX_AGE_S = 60 * 60 * 24 * 30; // 30 days
 const MIN_PASSWORD_LENGTH = 10;
 
+// ---------- Login rate limiting ----------
+// Best-effort and per server instance (no shared store needed): after 5 wrong passwords from one
+// address in 15 minutes, that address is locked out for the rest of the window. There's deliberately
+// no global limit, so a stranger can't lock the owner out. A long ADMIN_PASSWORD is the real protection.
+const WINDOW_MS = 15 * 60 * 1000;
+const MAX_PER_ADDRESS = 5;
+const failures = new Map<string, number[]>();
+
+function recent(times: number[] | undefined, now: number): number[] {
+  return (times ?? []).filter((t) => now - t < WINDOW_MS);
+}
+
+/** Seconds until this address may try again, or 0 if it may try now. */
+export function loginRetryAfter(address: string): number {
+  const now = Date.now();
+  const mine = recent(failures.get(address), now);
+  if (mine.length < MAX_PER_ADDRESS) return 0;
+  return Math.ceil((Math.min(...mine) + WINDOW_MS - now) / 1000);
+}
+
+export function recordLoginFailure(address: string): void {
+  const now = Date.now();
+  failures.set(address, [...recent(failures.get(address), now), now]);
+  // Keep the map small.
+  if (failures.size > 500) {
+    for (const [key, times] of failures) if (!recent(times, now).length) failures.delete(key);
+  }
+}
+
+export function clearLoginFailures(address: string): void {
+  failures.delete(address);
+}
+
 export function adminConfigured(): boolean {
   return typeof ADMIN_PASSWORD === 'string' && ADMIN_PASSWORD.length >= MIN_PASSWORD_LENGTH;
 }

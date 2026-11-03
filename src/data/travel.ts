@@ -8,7 +8,7 @@ export interface Photo {
   thumb: string;
   w: number;
   h: number;
-  /** ISO date the photo was taken, if the file had one. */
+  /** When the photo was taken, as the photo's own local time ("2025-02-05T21:00:00", no time zone). */
   takenAt?: string;
   /** Rounded to 0.1° (~11km) so exact locations are never published. */
   lat?: number;
@@ -135,8 +135,19 @@ export function orderedCountryIds(m: Manifest): string[] {
   );
 }
 
-export function photoCount(m: Manifest): number {
-  return Object.values(m.countries).reduce((n, c) => n + c.photos.length, 0);
+/**
+ * What the public globe gets: the same data, minus the location of any photo whose pin is hidden,
+ * so turning a pin off really keeps that spot private.
+ */
+export function publicManifest(m: Manifest): Manifest {
+  const countries: Record<string, CountryEntry> = {};
+  for (const [id, c] of Object.entries(m.countries)) {
+    countries[id] = {
+      ...c,
+      photos: c.photos.map((p) => (p.showPin ? p : { ...p, lat: undefined, lng: undefined })),
+    };
+  }
+  return { ...m, countries };
 }
 
 /** Next palette colour that no visited country uses yet (cycles when all are taken). */

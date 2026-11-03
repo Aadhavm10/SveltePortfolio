@@ -490,9 +490,11 @@
   }
 
   @media (max-width: 768px) {
-    /* Sit above the fixed "Made with…" credit in the bottom-right corner. */
+    /* Sit above the fixed "Made with…" credit (its position comes from Layout.astro). */
     .hero {
-      bottom: calc(3rem + env(safe-area-inset-bottom, 0px));
+      bottom: calc(
+        var(--credit-bottom, 1.5rem) + var(--credit-line, 1.2rem) + 0.5rem + env(safe-area-inset-bottom, 0px)
+      );
     }
     .hero h1 {
       font-size: clamp(2rem, 9vw, 2.6rem);

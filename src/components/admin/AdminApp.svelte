@@ -154,6 +154,16 @@
     throw new Error('Image is too large even after compression');
   }
 
+  /**
+   * EXIF dates have no time zone, and exifr turns them into a Date in this browser's zone.
+   * Keep the wall-clock time as written ("2025-02-05T21:00:00", no "Z") so the day doesn't
+   * shift when you upload from somewhere else.
+   */
+  function localIso(d: Date): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+
   async function processItem(item: QueueItem) {
     try {
       const [gps, meta] = await Promise.all([
@@ -171,7 +181,7 @@
         }
       }
       const date = meta?.DateTimeOriginal ?? meta?.CreateDate;
-      if (date instanceof Date && !Number.isNaN(+date)) item.takenAt = date.toISOString();
+      if (date instanceof Date && !Number.isNaN(+date)) item.takenAt = localIso(date);
       if (!item.countryId) item.countryId = lastCountry;
 
       const img = await decode(item.file);

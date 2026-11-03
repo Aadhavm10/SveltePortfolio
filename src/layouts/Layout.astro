@@ -33,11 +33,18 @@ const {
         background: #0a0a0a;
       }
 
+      /* The credit's size and position, shared so pages (e.g. the globe hero) can keep clear of it. */
+      :global(:root) {
+        --credit-bottom: 1.5rem;
+        --credit-line: 1.2rem;
+      }
+
       .credit {
         position: fixed;
-        bottom: 1.5rem;
-        right: 1.5rem;
+        bottom: calc(var(--credit-bottom) + env(safe-area-inset-bottom, 0px));
+        right: calc(1.5rem + env(safe-area-inset-right, 0px));
         font-size: 0.75rem;
+        line-height: var(--credit-line);
         color: rgba(255, 255, 255, 0.5);
         text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
         z-index: 100;

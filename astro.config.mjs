@@ -17,6 +17,8 @@ export default defineConfig({
       ADMIN_PASSWORD: envField.string({ context: 'server', access: 'secret', optional: true }),
       // Added automatically when a Vercel Blob store is connected to the project.
       BLOB_READ_WRITE_TOKEN: envField.string({ context: 'server', access: 'secret', optional: true }),
+      // Newer Vercel Blob connections can use OIDC with a store id instead of a read-write token.
+      BLOB_STORE_ID: envField.string({ context: 'server', access: 'secret', optional: true }),
     },
   },
   vite: {

@@ -6,7 +6,7 @@ import type { Feature, FeatureCollection, MultiLineString, MultiPolygon, Polygon
 import type { Topology, GeometryCollection } from 'topojson-specification';
 import worldUrl from 'world-atlas/countries-50m.json?url';
 import statesUrl from 'us-atlas/states-10m.json?url';
-import { displayName, stateId, US_ID, US_NAME } from '../data/travel';
+import { displayName, stateId, US_ID } from '../data/travel';
 
 export interface Region {
   /** ISO 3166-1 numeric for countries ("124"), "us-<FIPS>" for US states ("us-48"). */
@@ -164,11 +164,11 @@ function containing(list: Iterable<Region>, lat: number, lng: number): Region | 
 
 /** The region at an exact point: a US state inside the US, otherwise the country. */
 function regionAt(world: World, lat: number, lng: number): Region | null {
-  const country = containing(world.regions.values(), lat, lng);
-  if (!country) return null;
-  if (country.kind === 'state') return country;
-  if (country.id !== US_ID) return country;
-  return containing(world.states, lat, lng);
+  const country = containing(world.countries, lat, lng); // every country except the US
+  if (country) return country;
+  // Inside (or right at the edge of) the US: answer with the state instead.
+  const us = world.regions.get(US_ID);
+  return us && inBounds(us, lng, lat) ? containing(world.states, lat, lng) : null;
 }
 
 /** Which country (or US state) is this point in? Falls back to a nearby one for photos taken on the coast or a boat. */
@@ -183,11 +183,6 @@ export function findRegionAt(world: World, lat: number, lng: number): Region | n
     }
   }
   return null;
-}
-
-/** "Texas, United States" style label for pickers and panels. */
-export function regionParent(r: Region): string | null {
-  return r.kind === 'state' ? US_NAME : null;
 }
 
 /** Where to point the camera for a region, plus its rough angular size (radians). */

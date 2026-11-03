@@ -10,6 +10,8 @@ const RADIUS = 1 + ALTITUDE + 0.002; // on top of the raised countries
 const SIZE = 38; // sprite size in CSS px; the dot and ring sit in the middle third, the ripple uses the rest
 
 export interface StarHit {
+  /** Position in the starred list (stable for this layer). */
+  index: number;
   place: StarredPlace;
   /** Country or US state the marker is in, if any. */
   regionId: string | null;
@@ -120,7 +122,7 @@ export function createStarredLayer(world: World, places: StarredPlace[], pixelRa
       });
       if (!best) return null;
       const i = (best as { i: number }).i;
-      return { place: places[i], regionId: regions[i] };
+      return { index: i, place: places[i], regionId: regions[i] };
     },
     setHover(i) {
       material.uniforms.hoverIndex.value = i ?? -1;

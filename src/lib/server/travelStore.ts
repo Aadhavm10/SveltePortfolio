@@ -1,18 +1,21 @@
 // Storage for travel photos + the manifest that drives the globe.
-//  - Vercel Blob when BLOB_READ_WRITE_TOKEN is set (production).
+//  - Vercel Blob when a store is connected (BLOB_READ_WRITE_TOKEN, or BLOB_STORE_ID with Vercel OIDC).
 //  - Local filesystem under public/_local-travel/ during `astro dev` without a token.
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { BlobPreconditionFailedError, del, get, put } from '@vercel/blob';
-import { BLOB_READ_WRITE_TOKEN } from 'astro:env/server';
+import { BLOB_READ_WRITE_TOKEN, BLOB_STORE_ID } from 'astro:env/server';
 import { emptyManifest, type Manifest } from '../../data/travel';
 
 const MANIFEST_PATH = 'travel/manifest.json';
 
+// With a read-write token, pass it explicitly; otherwise let @vercel/blob use OIDC + BLOB_STORE_ID.
+const auth = () => (BLOB_READ_WRITE_TOKEN ? { token: BLOB_READ_WRITE_TOKEN } : {});
+
 export type StoreMode = 'blob' | 'local' | 'none';
 
 export function storeMode(): StoreMode {
-  if (BLOB_READ_WRITE_TOKEN) return 'blob';
+  if (BLOB_READ_WRITE_TOKEN || BLOB_STORE_ID) return 'blob';
   if (import.meta.env.DEV) return 'local';
   return 'none';
 }
@@ -31,7 +34,7 @@ interface Versioned {
 // ---------- Vercel Blob ----------
 const blob = {
   async read(): Promise<Versioned> {
-    const res = await get(MANIFEST_PATH, { access: 'public', useCache: false, token: BLOB_READ_WRITE_TOKEN });
+    const res = await get(MANIFEST_PATH, { access: 'public', useCache: false, ...auth() });
     if (!res || res.statusCode !== 200) return { manifest: emptyManifest(), etag: null };
     const text = await new Response(res.stream).text();
     return { manifest: JSON.parse(text) as Manifest, etag: res.blob.etag };
@@ -42,7 +45,7 @@ const blob = {
       contentType: 'application/json',
       addRandomSuffix: false,
       cacheControlMaxAge: 60,
-      token: BLOB_READ_WRITE_TOKEN,
+      ...auth(),
       // Optimistic concurrency: fail if someone else wrote in between.
       ...(etag ? { ifMatch: etag } : { allowOverwrite: false }),
     });
@@ -52,12 +55,12 @@ const blob = {
       access: 'public',
       contentType,
       addRandomSuffix: true,
-      token: BLOB_READ_WRITE_TOKEN,
+      ...auth(),
     });
     return res.url;
   },
   async deleteFiles(urls: string[]): Promise<void> {
-    if (urls.length) await del(urls, { token: BLOB_READ_WRITE_TOKEN });
+    if (urls.length) await del(urls, auth());
   },
 };
 

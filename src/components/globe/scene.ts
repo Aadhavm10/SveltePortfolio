@@ -45,7 +45,7 @@ export interface GlobeSceneOptions {
 /** What's under the pointer: a visited country/state, or a starred place. */
 export type HoverTarget =
   | { kind: 'region'; id: string }
-  | { kind: 'star'; name: string; note?: string; regionId: string | null };
+  | { kind: 'star'; index: number; name: string; note?: string; regionId: string | null };
 
 export interface GlobeScene {
   setManifest(m: Manifest): void;
@@ -85,8 +85,7 @@ export async function createGlobeScene(o: GlobeSceneOptions): Promise<GlobeScene
 
   let layer: VisitedLayer = createVisitedLayer(world, o.manifest, pixelRatio);
   scene.add(layer.group);
-  let currentStarred = o.manifest.starred ?? [];
-  let starred: StarredLayer = createStarredLayer(world, currentStarred, pixelRatio);
+  let starred: StarredLayer = createStarredLayer(world, o.manifest.starred ?? [], pixelRatio);
   scene.add(starred.group);
   o.onProgress?.(0.75);
   await nextFrame();
@@ -246,7 +245,7 @@ export async function createGlobeScene(o: GlobeSceneOptions): Promise<GlobeScene
     const rect = canvas.getBoundingClientRect();
     // Stars sit on top of everything, so they win.
     const s = starred.pick(clientX, clientY, rect, camera);
-    if (s) return { hit: true, id: null, star: { kind: 'star', name: s.place.name, note: s.place.note, regionId: s.regionId } };
+    if (s) return { hit: true, id: null, star: { kind: 'star', index: s.index, name: s.place.name, note: s.place.note, regionId: s.regionId } };
     ndc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
     const targets: Object3D[] = [body.globe, ...layer.pickables];
@@ -257,7 +256,7 @@ export async function createGlobeScene(o: GlobeSceneOptions): Promise<GlobeScene
   }
 
   let hoverId: string | null = null;
-  let hoverStar: string | null = null;
+  let hoverStar: number | null = null;
   let pendingMove: PointerEvent | null = null;
   let down: { x: number; y: number; t: number } | null = null;
 
@@ -280,7 +279,7 @@ export async function createGlobeScene(o: GlobeSceneOptions): Promise<GlobeScene
   };
   const onPointerLeave = () => {
     pendingMove = null;
-    if (hoverId || hoverStar) {
+    if (hoverId || hoverStar !== null) {
       hoverId = null;
       hoverStar = null;
       layer.setHover(null);
@@ -302,14 +301,13 @@ export async function createGlobeScene(o: GlobeSceneOptions): Promise<GlobeScene
     pendingMove = null;
     if (!e || e.buttons) return;
     const { id, star } = pick(e.clientX, e.clientY);
-    const starName = star && star.kind === 'star' ? star.name : null;
-    if (id !== hoverId || starName !== hoverStar) {
+    const starIndex = star && star.kind === 'star' ? star.index : null;
+    if (id !== hoverId || starIndex !== hoverStar) {
       hoverId = id;
-      hoverStar = starName;
+      hoverStar = starIndex;
       layer.setHover(id);
-      const places = currentStarred;
-      starred.setHover(starName ? places.findIndex((p) => p.name === starName) : null);
-      canvas.style.cursor = id || starName ? 'pointer' : '';
+      starred.setHover(starIndex);
+      canvas.style.cursor = id || starIndex !== null ? 'pointer' : '';
     }
     o.onHover(star ?? (id ? { kind: 'region', id } : null), e.clientX, e.clientY);
   }
@@ -357,8 +355,8 @@ export async function createGlobeScene(o: GlobeSceneOptions): Promise<GlobeScene
       layer = createVisitedLayer(world, m, pixelRatio);
       scene.add(layer.group);
       starred.dispose();
-      currentStarred = m.starred ?? [];
-      starred = createStarredLayer(world, currentStarred, pixelRatio);
+      starred = createStarredLayer(world, m.starred ?? [], pixelRatio);
+      hoverStar = null;
       scene.add(starred.group);
       layer.setSelected(selected);
     },

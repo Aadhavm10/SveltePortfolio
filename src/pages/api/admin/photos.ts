@@ -58,9 +58,10 @@ export const POST: APIRoute = async (ctx) => {
   const hasCoords = lat !== undefined && lng !== undefined && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
 
   const takenRaw = form.get('takenAt');
+  // Local wall-clock time from the photo ("2025-02-05T21:00:00"); kept as-is so the day never shifts.
   const takenAt =
-    typeof takenRaw === 'string' && takenRaw && !Number.isNaN(Date.parse(takenRaw))
-      ? new Date(takenRaw).toISOString()
+    typeof takenRaw === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(takenRaw) && !Number.isNaN(Date.parse(takenRaw))
+      ? takenRaw
       : undefined;
   const caption = String(form.get('caption') ?? '').trim().slice(0, 200) || undefined;
   const showPin = form.get('showPin') !== '0';
