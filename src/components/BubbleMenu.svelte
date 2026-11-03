@@ -259,6 +259,8 @@
             <a
               role="menuitem"
               href={item.href}
+              target={item.href?.startsWith('http') ? '_blank' : undefined}
+              rel={item.href?.startsWith('http') ? 'noopener noreferrer' : undefined}
               aria-label={item.ariaLabel || item.label}
               class="pill-link"
               style="--item-rot: {item.rotation ?? 0}deg; --pill-bg: {menuBg}; --pill-color: {menuContentColor}; --hover-bg: {item.hoverStyles?.bgColor || '#f3f4f6'}; --hover-color: {item.hoverStyles?.textColor || menuContentColor};"
