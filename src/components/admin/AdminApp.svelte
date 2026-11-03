@@ -51,6 +51,15 @@
   $: readyCount = queue.filter((q) => q.status === 'ready' && q.countryId).length;
   $: needsCountry = queue.filter((q) => q.status === 'ready' && !q.countryId).length;
 
+  // After a place is picked by hand on one photo, offer to use it for the rest of the queue.
+  let applyFrom: string | null = null;
+  $: readyTotal = queue.filter((q) => q.status === 'ready').length;
+  $: applySource = queue.find((q) => q.key === applyFrom && q.status === 'ready' && q.countryId);
+  $: applyTargets = applySource
+    ? queue.filter((q) => q !== applySource && q.status === 'ready' && q.countryId !== applySource.countryId)
+    : [];
+  $: applyUndetected = applyTargets.filter((q) => !q.detected).length;
+
   function nameOf(id: string): string {
     return manifest?.countries[id]?.name ?? world?.regions.get(id)?.name ?? id;
   }
@@ -227,6 +236,27 @@
     await Promise.all(lowMemory ? [worker()] : [worker(), worker()]);
   }
 
+  function pickPlace(item: QueueItem) {
+    item.detected = false;
+    lastCountry = item.countryId;
+    applyFrom = item.key;
+    queue = queue;
+  }
+
+  function applyPlace(onlyUndetected: boolean) {
+    if (!applySource) return;
+    const id = applySource.countryId;
+    const targets = applyTargets.filter((q) => !onlyUndetected || !q.detected);
+    for (const q of targets) {
+      q.countryId = id;
+      // Its GPS points somewhere else, so it gets no pin here (like moving a photo).
+      q.detected = false;
+    }
+    applyFrom = null;
+    queue = queue;
+    flash(`Set ${targets.length} ${targets.length === 1 ? 'photo' : 'photos'} to ${nameOf(id)}.`);
+  }
+
   function removeItem(item: QueueItem) {
     URL.revokeObjectURL(item.preview);
     queue = queue.filter((q) => q !== item);
@@ -271,6 +301,7 @@
   async function uploadAll() {
     if (uploading) return;
     uploading = true;
+    applyFrom = null;
     let done = 0;
     // One at a time so manifest updates never race.
     for (const item of queue) {
@@ -506,7 +537,7 @@
                 {:else}
                   {#if item.error && item.status === 'ready'}<p class="error small">Upload failed: {item.error}</p>{/if}
                   <div class="q-row">
-                    <select bind:value={item.countryId} on:change={() => { item.detected = false; lastCountry = item.countryId; }} disabled={item.status !== 'ready'}>
+                    <select bind:value={item.countryId} on:change={() => pickPlace(item)} disabled={item.status !== 'ready'}>
                       <option value="" disabled>Choose a country or US state…</option>
                       {#if visitedIds.length}
                         <optgroup label="Visited">
@@ -522,6 +553,18 @@
                     </select>
                     {#if item.detected}<span class="badge ok">📍 detected</span>{:else if item.lat === undefined}<span class="badge">no location</span>{/if}
                   </div>
+                  {#if applySource === item && applyTargets.length}
+                    <div class="q-row apply">
+                      <button class="ghost small" on:click={() => applyPlace(false)} aria-label="Use {nameOf(item.countryId)} for all {readyTotal} photos">
+                        Use for all {readyTotal} photos
+                      </button>
+                      {#if applyUndetected && applyUndetected < applyTargets.length}
+                        <button class="ghost small" on:click={() => applyPlace(true)} aria-label="Use {nameOf(item.countryId)} only for the {applyUndetected} with no location">
+                          Only the {applyUndetected} with no location
+                        </button>
+                      {/if}
+                    </div>
+                  {/if}
                   <input class="caption" type="text" bind:value={item.caption} placeholder="Caption (optional)" maxlength="200" disabled={item.status !== 'ready'} />
                   <div class="q-row small">
                     <label class="check"><input type="checkbox" bind:checked={item.showPin} disabled={!item.detected || item.status !== 'ready'} /> Show pin on map</label>
@@ -938,6 +981,15 @@
     gap: 10px;
     align-items: center;
     flex-wrap: wrap;
+  }
+  .q-row.apply {
+    gap: 8px;
+  }
+  .q-row.apply .ghost {
+    border-color: rgba(78, 205, 196, 0.5);
+    border-radius: 14px;
+    color: #4ecdc4;
+    text-align: left;
   }
 
   .q-row select {
