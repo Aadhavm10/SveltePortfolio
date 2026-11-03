@@ -1,7 +1,8 @@
 // Rename / re-note or remove a starred place.
 import type { APIRoute } from 'astro';
 import { guard, json } from '../../../../lib/server/auth';
-import { StoreNotConfiguredError, updateManifest } from '../../../../lib/server/travelStore';
+import { updateManifest } from '../../../../lib/server/travelStore';
+import { storageFailure } from '../../../../lib/server/storageErrors';
 
 export const prerender = false;
 
@@ -9,9 +10,7 @@ class NotFound extends Error {}
 
 function fail(err: unknown): Response {
   if (err instanceof NotFound) return json({ error: 'Starred place not found.' }, 404);
-  if (err instanceof StoreNotConfiguredError) return json({ error: err.message }, 503);
-  console.error('starred route failed', err);
-  return json({ error: 'Something went wrong. Please try again.' }, 500);
+  return storageFailure('starred route', err);
 }
 
 export const PATCH: APIRoute = async (ctx) => {

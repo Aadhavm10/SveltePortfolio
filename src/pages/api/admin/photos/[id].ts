@@ -2,7 +2,8 @@
 import type { APIRoute } from 'astro';
 import { guard, json } from '../../../../lib/server/auth';
 import { regionName } from '../../../../lib/server/countryNames';
-import { deleteFiles, StoreNotConfiguredError, updateManifest } from '../../../../lib/server/travelStore';
+import { deleteFiles, updateManifest } from '../../../../lib/server/travelStore';
+import { storageFailure } from '../../../../lib/server/storageErrors';
 import { nextColor, type Manifest, type Photo } from '../../../../data/travel';
 
 export const prerender = false;
@@ -19,9 +20,7 @@ function findPhoto(m: Manifest, id: string): { countryId: string; index: number 
 
 function fail(err: unknown): Response {
   if (err instanceof NotFound) return json({ error: 'Photo not found.' }, 404);
-  if (err instanceof StoreNotConfiguredError) return json({ error: err.message }, 503);
-  console.error('photo route failed', err);
-  return json({ error: 'Something went wrong. Please try again.' }, 500);
+  return storageFailure('photo route', err);
 }
 
 export const DELETE: APIRoute = async (ctx) => {

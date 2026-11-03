@@ -1,7 +1,8 @@
 // Edit a visited country's dates, note, colour and photo order.
 import type { APIRoute } from 'astro';
 import { guard, json } from '../../../../lib/server/auth';
-import { StoreNotConfiguredError, updateManifest } from '../../../../lib/server/travelStore';
+import { updateManifest } from '../../../../lib/server/travelStore';
+import { storageFailure } from '../../../../lib/server/storageErrors';
 
 export const prerender = false;
 
@@ -41,8 +42,6 @@ export const PATCH: APIRoute = async (ctx) => {
     return json({ manifest });
   } catch (err) {
     if (err instanceof NotFound) return json({ error: 'Country not found.' }, 404);
-    if (err instanceof StoreNotConfiguredError) return json({ error: err.message }, 503);
-    console.error('PATCH country failed', err);
-    return json({ error: 'Something went wrong. Please try again.' }, 500);
+    return storageFailure('PATCH country', err);
   }
 };
