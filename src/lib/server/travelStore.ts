@@ -1,7 +1,7 @@
 // Storage for travel photos + the manifest that drives the globe.
 //  - Vercel Blob when a store is connected (BLOB_READ_WRITE_TOKEN, or BLOB_STORE_ID with Vercel OIDC).
 //  - Local filesystem under public/_local-travel/ during `astro dev` without a token.
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { BlobPreconditionFailedError, del, get, list, put, type ListBlobResultBlob } from '@vercel/blob';
 import { BLOB_READ_WRITE_TOKEN, BLOB_STORE_ID } from 'astro:env/server';
@@ -19,6 +19,12 @@ export function storeMode(): StoreMode {
   if (BLOB_READ_WRITE_TOKEN || BLOB_STORE_ID) return 'blob';
   if (import.meta.env.DEV) return 'local';
   return 'none';
+}
+
+/** How much is stored (photos, thumbnails and the saved travel data). */
+export interface StorageUsage {
+  bytes: number;
+  files: number;
 }
 
 export class StoreNotConfiguredError extends Error {
@@ -125,6 +131,22 @@ const blob = {
     if (stale.length) await del(stale, auth()).catch((e) => console.error('Old travel data cleanup failed', e));
   },
 
+  /** Adds up everything under travel/ (one list call per 1,000 files). */
+  async usage(): Promise<StorageUsage> {
+    let bytes = 0;
+    let files = 0;
+    let cursor: string | undefined;
+    do {
+      const page = await list({ prefix: 'travel/', limit: 1000, cursor, ...auth() });
+      for (const b of page.blobs) {
+        bytes += b.size;
+        files++;
+      }
+      cursor = page.hasMore ? page.cursor : undefined;
+    } while (cursor);
+    return { bytes, files };
+  },
+
   async putFile(pathname: string, data: Blob, contentType: string): Promise<string> {
     const res = await put(pathname, data, {
       access: 'public',
@@ -155,6 +177,23 @@ const local = {
   },
   async readPublic(): Promise<Manifest> {
     return (await local.read()).manifest;
+  },
+  async usage(): Promise<StorageUsage> {
+    let bytes = 0;
+    let files = 0;
+    const walk = async (dir: string) => {
+      const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
+      for (const e of entries) {
+        const full = path.join(dir, e.name);
+        if (e.isDirectory()) await walk(full);
+        else if (e.isFile()) {
+          bytes += (await stat(full)).size;
+          files++;
+        }
+      }
+    };
+    await walk(path.join(LOCAL_DIR, 'travel'));
+    return { bytes, files };
   },
   async write(m: Manifest): Promise<void> {
     const file = path.join(LOCAL_DIR, MANIFEST_PATH);
@@ -225,4 +264,8 @@ export async function putFile(pathname: string, data: Blob, contentType: string)
 
 export async function deleteFiles(urls: string[]): Promise<void> {
   return backend().deleteFiles(urls);
+}
+
+export async function storageUsage(): Promise<StorageUsage> {
+  return backend().usage();
 }

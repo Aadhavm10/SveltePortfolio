@@ -545,6 +545,31 @@
     }
   }
 
+  // ---------- storage ----------
+  // Checked on demand (it lists every stored file), to see whether the photos fit the free plan.
+  let storage: { bytes: number; files: number; freeLimitBytes: number } | null = null;
+  let storageBusy = false;
+  let storageError = '';
+  $: photoTotal = manifest ? allPhotos(manifest).length : 0;
+  $: storagePct = storage ? (storage.bytes / storage.freeLimitBytes) * 100 : 0;
+  $: perPhoto = storage && photoTotal ? storage.bytes / photoTotal : 0;
+  $: roomFor = storage && perPhoto ? Math.max(0, Math.floor((storage.freeLimitBytes - storage.bytes) / perPhoto)) : null;
+
+  const fmtSize = (b: number) => (b >= 1e8 ? `${(b / 1e9).toFixed(2)} GB` : b >= 1e6 ? `${(b / 1e6).toFixed(b >= 1e7 ? 0 : 1)} MB` : `${Math.round(b / 1e3)} KB`);
+  const fmtPct = (pct: number) => (pct > 0 && pct < 1 ? '<1%' : `${Math.round(pct)}%`);
+
+  async function checkStorage() {
+    storageBusy = true;
+    storageError = '';
+    try {
+      storage = await api<{ bytes: number; files: number; freeLimitBytes: number }>('/api/admin/storage');
+    } catch (err) {
+      storageError = (err as Error).message;
+    } finally {
+      storageBusy = false;
+    }
+  }
+
   let shuffling = false;
   async function shuffleColors() {
     shuffling = true;
@@ -896,6 +921,46 @@
         </button>
       </form>
     </section>
+
+    <section class="card">
+      <h2>Storage</h2>
+      <p class="muted small">
+        Vercel's free plan includes 1 GB of photo storage. Check here before switching back to it from Pro:
+        going over a free limit takes the photos offline.
+      </p>
+      {#if storage}
+        <div
+          class="meter"
+          class:warn={storagePct >= 90 && storagePct < 100}
+          class:over={storagePct >= 100}
+          role="meter"
+          aria-label="Storage used of the free 1 GB"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow={Math.round(storagePct)}
+        >
+          <i style="width:{Math.min(100, storagePct)}%"></i>
+        </div>
+        <p class="meter-line"><b>{fmtSize(storage.bytes)}</b> of the free 1 GB ({fmtPct(storagePct)})</p>
+        <p class="muted small">
+          {#if photoTotal}
+            {photoTotal} {photoTotal === 1 ? 'photo' : 'photos'}, about {fmtSize(perPhoto)} each with its thumbnail{roomFor !== null && storagePct < 100
+              ? ` · room for about ${roomFor.toLocaleString()} more`
+              : ''}.
+          {/if}
+          Counts photos, thumbnails and saved travel data ({storage.files.toLocaleString()} files).
+        </p>
+        {#if storagePct >= 100}
+          <p class="error small">Over the free 1 GB: stay on Pro, or delete photos before switching back to the free plan.</p>
+        {:else if storagePct >= 90}
+          <p class="dup small">Close to the free limit. Leave some room before switching back to the free plan.</p>
+        {/if}
+      {/if}
+      {#if storageError}<p class="error small">{storageError}</p>{/if}
+      <button class="ghost small storage-btn" on:click={checkStorage} disabled={storageBusy}>
+        {storageBusy ? 'Checking…' : storage ? 'Check again' : 'Check storage'}
+      </button>
+    </section>
   {/if}
 
   {#if toast}<div class="toast" role="status">{toast}</div>{/if}
@@ -939,6 +1004,34 @@
     border-radius: 18px;
     padding: 22px;
     margin-top: 18px;
+  }
+
+  .meter {
+    height: 10px;
+    margin: 14px 0 10px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .meter i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: #4ecdc4;
+    transition: width 0.4s ease;
+  }
+  .meter.warn i {
+    background: #ffd38a;
+  }
+  .meter.over i {
+    background: #ff6b6b;
+  }
+  .meter-line {
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+  .storage-btn {
+    margin-top: 12px;
   }
 
   .card.narrow {
