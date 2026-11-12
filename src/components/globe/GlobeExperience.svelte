@@ -43,6 +43,18 @@
   $: selectedIndex = selectedId ? ids.indexOf(selectedId) : -1;
   $: selectedKicker = kickerFor(selectedId, world, manifest);
   $: hoveredCountry = hovered?.target.kind === 'region' ? manifest.countries[hovered.target.id] ?? null : null;
+  // A place's photos include those of the home bases in it.
+  $: hoveredPhotos = hoveredCountry && hovered?.target.kind === 'region' ? photoCount(hovered.target.id, hoveredCountry.photos.length, starsByRegion) : 0;
+  $: selectedSections =
+    selectedId && !isHomeTarget(selectedId)
+      ? (starsByRegion.get(selectedId) ?? [])
+          .filter((s) => s.photos?.length)
+          .map((s) => ({ id: s.id, name: s.name, note: s.note, photos: s.photos ?? [] }))
+      : [];
+
+  function photoCount(id: string, own: number, byRegion: Map<string, StarredPlace[]>): number {
+    return own + (byRegion.get(id) ?? []).reduce((n, s) => n + (s.photos?.length ?? 0), 0);
+  }
   $: hoveredStar = hovered?.target.kind === 'star' ? hovered.target : null;
   $: hoveredStarPhotos = hoveredStar ? manifest.starred?.[hoveredStar.index]?.photos?.length ?? 0 : 0;
   $: starredCount = manifest.starred?.length ?? 0;
@@ -284,7 +296,7 @@
     <div class="tip" style="left:{hovered.x}px; top:{hovered.y}px">
       <span class="dot" style="background:{hoveredCountry.color}; color:{hoveredCountry.color}"></span>
       {hoveredCountry.name}
-      <span class="muted">· {hoveredCountry.photos.length} {hoveredCountry.photos.length === 1 ? 'photo' : 'photos'} · click to open</span>
+      <span class="muted">· {hoveredPhotos} {hoveredPhotos === 1 ? 'photo' : 'photos'} · click to open</span>
     </div>
   {/if}
 
@@ -296,6 +308,7 @@
         parentName={selectedKicker}
         stars={(starsByRegion.get(selectedId) ?? []).map((s) => ({ id: s.id, name: s.name, note: s.note, count: s.photos?.length ?? 0 }))}
         onStar={(id) => select(homeTarget(id))}
+        sections={selectedSections}
         {prevName}
         {nextName}
         {mobile}
