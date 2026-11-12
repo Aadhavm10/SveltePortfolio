@@ -1,9 +1,9 @@
 // Add a photo (already resized + EXIF-stripped in the browser) to a country, US state or home base.
 import type { APIRoute } from 'astro';
 import { guard, json } from '../../../lib/server/auth';
-import { deleteFiles, putFile, updateManifest } from '../../../lib/server/travelStore';
+import { deleteFiles, putFile } from '../../../lib/server/travelStore';
 import { storageFailure } from '../../../lib/server/storageErrors';
-import { MissingHomeError, parseTarget, photosAt, targetFolder } from '../../../lib/server/photoPlaces';
+import { MissingHomeError, parseTarget, photosAt, targetFolder, updatePlaces } from '../../../lib/server/photoPlaces';
 import type { Photo } from '../../../data/travel';
 
 export const prerender = false;
@@ -92,7 +92,7 @@ export const POST: APIRoute = async (ctx) => {
       ...(hasCoords ? { lat: round1(lat!), lng: round1(lng!) } : {}),
     };
 
-    const { manifest } = await updateManifest((m) => {
+    const { manifest } = await updatePlaces((m) => {
       photosAt(m, target).push(photo);
     });
     return json({ manifest, photo });

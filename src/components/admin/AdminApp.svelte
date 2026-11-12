@@ -61,6 +61,19 @@
   let toastTimer: number | undefined;
 
   $: visitedIds = manifest ? orderedCountryIds(manifest) : [];
+  // Home bases with photos, by the country / state they're in (they light that place up too).
+  $: homesByPlace = groupHomes(manifest, world);
+
+  function groupHomes(m: Manifest | null, w: World | null): Map<string, StarredPlace[]> {
+    const out = new Map<string, StarredPlace[]>();
+    if (!m || !w) return out;
+    for (const s of m.starred ?? []) {
+      if (!s.photos?.length) continue;
+      const id = findRegionAt(w, s.lat, s.lng)?.id;
+      if (id) out.set(id, [...(out.get(id) ?? []), s]);
+    }
+    return out;
+  }
   $: readyCount = queue.filter((q) => q.status === 'ready' && q.countryId).length;
   $: needsCountry = queue.filter((q) => q.status === 'ready' && !q.countryId).length;
 
@@ -809,7 +822,13 @@
               <button class="country-head" on:click={() => toggleCountry(id)}>
                 <span class="dot" style="background:{c.color}"></span>
                 <span class="c-name">{c.name}</span>
-                <span class="muted small">{c.photos.length} {c.photos.length === 1 ? 'photo' : 'photos'}{c.when ? ` · ${c.when}` : ''}</span>
+                <span class="muted small">
+                  {#if c.photos.length || !homesByPlace.get(id)?.length}
+                    {c.photos.length} {c.photos.length === 1 ? 'photo' : 'photos'}{c.when ? ` · ${c.when}` : ''}
+                  {:else}
+                    Lit by home {homesByPlace.get(id)?.length === 1 ? 'base' : 'bases'}: {homesByPlace.get(id)?.map((s) => s.name).join(', ')}
+                  {/if}
+                </span>
                 {#if c.photos.some((p) => uploadedDups.has(p.id))}<span class="badge warn">possible duplicate</span>{/if}
                 <span class="chev">{openCountry === id ? '−' : '+'}</span>
               </button>

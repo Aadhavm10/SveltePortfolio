@@ -19,13 +19,17 @@ export interface Region {
   bounds: [[number, number], [number, number]];
 }
 
-export interface World {
+/** The regions alone: enough to find which country / state a point is in (also used on the server). */
+export interface RegionIndex {
   /** Every country (the US included) and every US state, by id. */
   regions: Map<string, Region>;
   /** Countries for pickers, sorted by name. The US is left out: pick a state instead. */
   countries: Region[];
   /** US states (+ DC), sorted by name. */
   states: Region[];
+}
+
+export interface World extends RegionIndex {
   /** Country borders + coastlines, each arc once. */
   borders: MultiLineString;
   /** Borders between US states (no coastlines). */
@@ -115,6 +119,18 @@ function grouped(fc: FeatureCollection<Polygon | MultiPolygon, NameProps>) {
 function buildWorld(worldTopo: Topology, usTopo: Topology): World {
   const wObjects = worldTopo.objects as { countries: GeometryCollection<NameProps>; land: GeometryCollection };
   const uObjects = usTopo.objects as { states: GeometryCollection<NameProps> };
+  return {
+    ...buildRegions(worldTopo, usTopo),
+    borders: mesh(worldTopo, wObjects.countries) as MultiLineString,
+    stateBorders: mesh(usTopo, uObjects.states, (a, b) => a !== b) as MultiLineString,
+    land: feature(worldTopo, wObjects.land),
+  };
+}
+
+/** Countries (world-atlas) and US states (us-atlas) as regions, from the two topologies. */
+export function buildRegions(worldTopo: Topology, usTopo: Topology): RegionIndex {
+  const wObjects = worldTopo.objects as { countries: GeometryCollection<NameProps> };
+  const uObjects = usTopo.objects as { states: GeometryCollection<NameProps> };
 
   const regions = new Map<string, Region>();
   const countries: Region[] = [];
@@ -138,14 +154,7 @@ function buildWorld(worldTopo: Topology, usTopo: Topology): World {
   countries.sort((x, y) => x.name.localeCompare(y.name));
   states.sort((x, y) => x.name.localeCompare(y.name));
 
-  return {
-    regions,
-    countries,
-    states,
-    borders: mesh(worldTopo, wObjects.countries) as MultiLineString,
-    stateBorders: mesh(usTopo, uObjects.states, (a, b) => a !== b) as MultiLineString,
-    land: feature(worldTopo, wObjects.land),
-  };
+  return { regions, countries, states };
 }
 
 function inBounds(r: Region, lng: number, lat: number): boolean {
@@ -163,7 +172,7 @@ function containing(list: Iterable<Region>, lat: number, lng: number): Region | 
 }
 
 /** The region at an exact point: a US state inside the US, otherwise the country. */
-function regionAt(world: World, lat: number, lng: number): Region | null {
+function regionAt(world: RegionIndex, lat: number, lng: number): Region | null {
   const country = containing(world.countries, lat, lng); // every country except the US
   if (country) return country;
   // Inside (or right at the edge of) the US: answer with the state instead.
@@ -172,7 +181,7 @@ function regionAt(world: World, lat: number, lng: number): Region | null {
 }
 
 /** Which country (or US state) is this point in? Falls back to a nearby one for photos taken on the coast or a boat. */
-export function findRegionAt(world: World, lat: number, lng: number): Region | null {
+export function findRegionAt(world: RegionIndex, lat: number, lng: number): Region | null {
   const direct = regionAt(world, lat, lng);
   if (direct) return direct;
   for (const r of [0.1, 0.25, 0.5]) {
@@ -183,6 +192,96 @@ export function findRegionAt(world: World, lat: number, lng: number): Region | n
     }
   }
   return null;
+}
+
+// ---------- Mainland vs. far-off pieces ----------
+const EARTH_KM = 6371;
+/** Pieces of a country within this distance of each other light up together (chained). */
+const HOP_KM = 800;
+/** A far piece also lights up when a photo or home base is in it, or this close to it. */
+const ANCHOR_KM = 60;
+/** Coastline sample spacing for the distance checks. */
+const SAMPLE_KM = 80;
+
+type Vec = [number, number, number];
+const unit = ([lng, lat]: Position): Vec => latLngToVector3(lat, lng, 1);
+const dot = (a: Vec, b: Vec) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const angle = (a: Vec, b: Vec) => Math.acos(Math.max(-1, Math.min(1, dot(a, b))));
+
+interface Piece {
+  rings: Position[][];
+  /** Outer-ring points about SAMPLE_KM apart, as unit vectors. */
+  samples: Vec[];
+  /** Rough centre and angular radius, for a quick "too far apart" test. */
+  centre: Vec;
+  radius: number;
+}
+
+function toPiece(rings: Position[][]): Piece {
+  const outer = rings[0] ?? [];
+  const samples: Vec[] = [];
+  let since = Infinity;
+  let prev: Vec | null = null;
+  for (const p of outer) {
+    const v = unit(p);
+    if (prev) since += angle(prev, v) * EARTH_KM;
+    if (since >= SAMPLE_KM) {
+      samples.push(v);
+      since = 0;
+    }
+    prev = v;
+  }
+  const sum = samples.reduce<Vec>((s, v) => [s[0] + v[0], s[1] + v[1], s[2] + v[2]], [0, 0, 0]);
+  const len = Math.hypot(...sum) || 1;
+  const centre: Vec = [sum[0] / len, sum[1] / len, sum[2] / len];
+  const radius = samples.reduce((r, v) => Math.max(r, angle(centre, v)), 0);
+  return { rings, samples, centre, radius };
+}
+
+/** Are two pieces within `km` of each other (coast to coast, approximately)? */
+function within(a: Piece, b: Piece, km: number): boolean {
+  const limit = km / EARTH_KM;
+  if (angle(a.centre, b.centre) - a.radius - b.radius > limit) return false;
+  const minDot = Math.cos(limit);
+  for (const p of a.samples) for (const q of b.samples) if (dot(p, q) >= minDot) return true;
+  return false;
+}
+
+/**
+ * Which pieces of a country to light: the main landmass and everything chained to it within
+ * HOP_KM (so archipelagos stay whole), plus far-off pieces that hold a photo or home base and
+ * whatever is chained to those. So France lights up without French Guiana or Réunion, Spain
+ * without the Canaries, and India with the Andaman Islands only when you've been there.
+ * Expects polygons largest first (as Region.polygons are).
+ */
+export function mainlandPolygons(polygons: Position[][][], anchors: { lat: number; lng: number }[] = []): Position[][][] {
+  if (polygons.length < 2) return polygons;
+  const pieces = polygons.map(toPiece);
+  const keep = new Set<number>([0]);
+  // Far pieces you've been to.
+  pieces.forEach((piece, i) => {
+    if (keep.has(i)) return;
+    const poly: Polygon = { type: 'Polygon', coordinates: piece.rings };
+    const near = Math.cos(ANCHOR_KM / EARTH_KM);
+    if (anchors.some((a) => geoContains(poly, [a.lng, a.lat]) || piece.samples.some((s) => dot(s, unit([a.lng, a.lat])) >= near))) {
+      keep.add(i);
+    }
+  });
+  // Everything chained to a kept piece.
+  for (let grew = true; grew; ) {
+    grew = false;
+    pieces.forEach((piece, j) => {
+      if (keep.has(j)) return;
+      for (const i of keep) {
+        if (within(pieces[i], piece, HOP_KM)) {
+          keep.add(j);
+          grew = true;
+          return;
+        }
+      }
+    });
+  }
+  return polygons.filter((_, i) => keep.has(i));
 }
 
 /** Where to point the camera for a region, plus its rough angular size (radians). */

@@ -1,8 +1,9 @@
 // Rename / re-note / reorder the photos of a home base, or remove it (with its photos).
 import type { APIRoute } from 'astro';
 import { guard, json } from '../../../../lib/server/auth';
-import { deleteFiles, updateManifest } from '../../../../lib/server/travelStore';
+import { deleteFiles } from '../../../../lib/server/travelStore';
 import { storageFailure } from '../../../../lib/server/storageErrors';
+import { updatePlaces } from '../../../../lib/server/photoPlaces';
 
 export const prerender = false;
 
@@ -28,7 +29,7 @@ export const PATCH: APIRoute = async (ctx) => {
     return json({ error: 'Bad photo order.' }, 400);
   }
   try {
-    const { manifest } = await updateManifest((m) => {
+    const { manifest } = await updatePlaces((m) => {
       const s = m.starred?.find((x) => x.id === id);
       if (!s) throw new NotFound();
       if (typeof body.name === 'string') s.name = body.name.trim().slice(0, 60);
@@ -49,7 +50,7 @@ export const DELETE: APIRoute = async (ctx) => {
   if (denied) return denied;
   const id = ctx.params.id ?? '';
   try {
-    const { manifest, result: removed } = await updateManifest((m) => {
+    const { manifest, result: removed } = await updatePlaces((m) => {
       const i = m.starred?.findIndex((x) => x.id === id) ?? -1;
       if (i < 0) throw new NotFound();
       return m.starred!.splice(i, 1)[0];

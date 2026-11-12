@@ -2,9 +2,11 @@
   import { fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import Lightbox from '../Lightbox.svelte';
-  import type { CountryEntry } from '../../data/travel';
+  import type { CountryEntry, Photo } from '../../data/travel';
 
   export let country: CountryEntry;
+  /** Home bases inside this place that have photos: shown under its own photos, one section each. */
+  export let sections: { id: string; name: string; note?: string; photos: Photo[] }[] = [];
   export let index = 0;
   export let total = 1;
   /** e.g. "United States" when the place is a US state. */
@@ -22,11 +24,25 @@
   let lightboxIndex: number | null = null;
   let scroller: HTMLDivElement;
 
-  $: items = country.photos.map((p, i) => ({
-    src: p.full,
-    alt: p.caption ?? `${country.name} photo ${i + 1}`,
-    caption: p.caption,
-  }));
+  // The place's own photos, then each home base's; the lightbox steps through all of them in order.
+  $: groups = withStarts([
+    { key: '', name: country.name, note: undefined as string | undefined, photos: country.photos },
+    ...sections.map((s) => ({ key: s.id, name: s.name, note: s.note, photos: s.photos })),
+  ]);
+
+  function withStarts<G extends { photos: Photo[] }>(list: G[]): (G & { start: number })[] {
+    let n = 0;
+    return list
+      .filter((g) => g.photos.length)
+      .map((g) => {
+        const start = n;
+        n += g.photos.length;
+        return { ...g, start };
+      });
+  }
+  $: items = groups.flatMap((g) =>
+    g.photos.map((p, i) => ({ src: p.full, alt: p.caption ?? `${g.name} photo ${i + 1}`, caption: p.caption }))
+  );
   // Scroll back to the top when switching country.
   $: if (scroller && country) scroller.scrollTop = 0;
 </script>
@@ -62,14 +78,19 @@
     {#if country.when}<p class="when">{country.when}</p>{/if}
     {#if country.blurb}<p class="blurb">{country.blurb}</p>{/if}
 
-    <div class="grid">
-      {#each country.photos as photo, i (photo.id)}
-        <button class="photo" class:wide={photo.w > photo.h * 1.25} on:click={() => (lightboxIndex = i)} aria-label="Open photo {i + 1}">
-          <img src={photo.thumb} alt={photo.caption ?? `${country.name} photo ${i + 1}`} loading="lazy" decoding="async" width={photo.w} height={photo.h} />
-          {#if photo.caption}<span class="cap">{photo.caption}</span>{/if}
-        </button>
-      {/each}
-    </div>
+    {#each groups as g (g.key)}
+      {#if g.key}
+        <h3 class="section-title"><span class="beacon" aria-hidden="true"></span>{g.name}{#if g.note}<span class="note"> · {g.note}</span>{/if}</h3>
+      {/if}
+      <div class="grid" class:in-section={!!g.key}>
+        {#each g.photos as photo, i (photo.id)}
+          <button class="photo" class:wide={photo.w > photo.h * 1.25} on:click={() => (lightboxIndex = g.start + i)} aria-label="Open {g.name} photo {i + 1}">
+            <img src={photo.thumb} alt={photo.caption ?? `${g.name} photo ${i + 1}`} loading="lazy" decoding="async" width={photo.w} height={photo.h} />
+            {#if photo.caption}<span class="cap">{photo.caption}</span>{/if}
+          </button>
+        {/each}
+      </div>
+    {/each}
   </div>
 
   {#if total > 1}
@@ -258,6 +279,25 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
+  }
+
+  .grid.in-section {
+    margin-top: 12px;
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 28px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .section-title .note {
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.6);
   }
 
   .photo {
