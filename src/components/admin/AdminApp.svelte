@@ -48,11 +48,15 @@
     thumb?: Blob;
     w?: number;
     h?: number;
+    /** Where its files are stored once uploaded; kept if the save fails, so a retry only saves again. */
+    uploaded?: { full: string; thumb: string };
   }
 
   let queue: QueueItem[] = [];
   let lastCountry = '';
   let uploading = false;
+  /** Which half of an upload is running: storing the files, or the one save for the batch. */
+  let uploadPhase: '' | 'files' | 'saving' = '';
   let dragOver = false;
   let openCountry: string | null = null;
   let draft = { when: '', blurb: '', color: '' };
@@ -121,7 +125,9 @@
 
   function removeDuplicates() {
     const n = queueDups.size;
-    queue.filter((q) => queueDups.has(q.key)).forEach((q) => URL.revokeObjectURL(q.preview));
+    const dups = queue.filter((q) => queueDups.has(q.key));
+    dups.forEach((q) => URL.revokeObjectURL(q.preview));
+    discardUploads(dups);
     queue = queue.filter((q) => !queueDups.has(q.key));
     flash(`Removed ${n} ${n === 1 ? 'duplicate' : 'duplicates'}.`);
   }
@@ -367,31 +373,31 @@
     flash(`Set ${targets.length} ${targets.length === 1 ? 'photo' : 'photos'} to ${nameOf(id)}.`);
   }
 
+  /** Delete the stored files of queued photos that are dropped before they were saved. */
+  function discardUploads(items: QueueItem[]) {
+    const urls = items.flatMap((q) => (q.uploaded && q.status !== 'done' ? [q.uploaded.full, q.uploaded.thumb] : []));
+    for (let i = 0; i < urls.length; i += 100) {
+      api('/api/admin/uploads', { method: 'DELETE', body: JSON.stringify({ urls: urls.slice(i, i + 100) }) }).catch(() => {});
+    }
+  }
+
   function removeItem(item: QueueItem) {
     URL.revokeObjectURL(item.preview);
+    discardUploads([item]);
     queue = queue.filter((q) => q !== item);
   }
 
-  function uploadOne(item: QueueItem): Promise<{ manifest: Manifest }> {
+  /** Store one photo's files (with progress). The photo itself is saved afterwards, with its batch. */
+  function uploadFiles(item: QueueItem): Promise<{ full: string; thumb: string }> {
     return new Promise((resolve, reject) => {
       const fd = new FormData();
       const ext = (b: Blob) => (b.type === 'image/webp' ? 'webp' : 'jpg');
       fd.append('full', item.full!, `full.${ext(item.full!)}`);
       fd.append('thumb', item.thumb!, `thumb.${ext(item.thumb!)}`);
       fd.append('countryId', item.countryId);
-      fd.append('w', String(item.w));
-      fd.append('h', String(item.h));
-      if (item.takenAt) fd.append('takenAt', item.takenAt);
-      if (item.lat !== undefined && item.lng !== undefined && item.detected) {
-        fd.append('lat', String(item.lat));
-        fd.append('lng', String(item.lng));
-      }
-      fd.append('caption', item.caption);
-      fd.append('showPin', item.showPin ? '1' : '0');
-      if (item.dhash) fd.append('dhash', item.dhash);
 
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', '/api/admin/photos');
+      xhr.open('POST', '/api/admin/uploads');
       xhr.responseType = 'json';
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
@@ -401,7 +407,7 @@
       };
       xhr.onload = () => {
         if (xhr.status === 401) authed = false;
-        if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.response);
+        if (xhr.status >= 200 && xhr.status < 300 && xhr.response?.full && xhr.response?.thumb) resolve(xhr.response);
         else reject(new Error(xhr.response?.error ?? `Upload failed (${xhr.status})`));
       };
       xhr.onerror = () => reject(new Error('Network error'));
@@ -409,32 +415,78 @@
     });
   }
 
+  /** What the server needs to add an uploaded photo to the travel data. */
+  function photoDetails(item: QueueItem) {
+    return {
+      countryId: item.countryId,
+      full: item.uploaded!.full,
+      thumb: item.uploaded!.thumb,
+      w: item.w,
+      h: item.h,
+      takenAt: item.takenAt,
+      caption: item.caption,
+      showPin: item.showPin,
+      dhash: item.dhash,
+      ...(item.detected && item.lat !== undefined && item.lng !== undefined ? { lat: item.lat, lng: item.lng } : {}),
+    };
+  }
+
+  const SAVE_CHUNK = 50;
+
   async function uploadAll() {
     if (uploading) return;
     uploading = true;
     applyFrom = null;
-    let done = 0;
-    // One at a time so manifest updates never race.
-    for (const item of queue) {
-      if (item.status !== 'ready' || !item.countryId) continue;
+    const batch = queue.filter((q) => q.status === 'ready' && q.countryId);
+    for (const item of batch) {
       item.status = 'uploading';
       item.error = undefined;
-      item.progress = 0;
-      queue = queue;
+      item.progress = item.uploaded ? 1 : 0;
+    }
+    queue = queue;
+
+    // 1. Store each photo's files, a few at a time. Files stored by an earlier try are reused.
+    uploadPhase = 'files';
+    const pending = batch.filter((q) => !q.uploaded);
+    const worker = async () => {
+      for (let item = pending.shift(); item && authed; item = pending.shift()) {
+        try {
+          item.uploaded = await uploadFiles(item);
+          item.progress = 1;
+        } catch (err) {
+          // Stays in the queue, so the next "Upload" tries it again.
+          item.status = 'ready';
+          item.error = (err as Error).message;
+        }
+        queue = queue;
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+
+    // 2. Add them to the travel data with one save (per 50 photos), not one save per photo.
+    uploadPhase = 'saving';
+    let done = 0;
+    const toSave = batch.filter((q) => q.status === 'uploading' && q.uploaded);
+    for (let i = 0; i < toSave.length && authed; i += SAVE_CHUNK) {
+      const chunk = toSave.slice(i, i + SAVE_CHUNK);
       try {
-        const res = await uploadOne(item);
-        manifest = res.manifest;
-        item.status = 'done';
-        done++;
+        ({ manifest } = await api('/api/admin/photos', { method: 'POST', body: JSON.stringify({ photos: chunk.map(photoDetails) }) }));
+        for (const item of chunk) item.status = 'done';
+        done += chunk.length;
       } catch (err) {
-        // Stays in the queue, so the next "Upload" tries it again.
-        item.status = 'ready';
-        item.error = (err as Error).message;
-        if (!authed) break;
+        // They stay in the queue and keep their stored files, so the next "Upload" only saves again.
+        for (const item of chunk) {
+          item.status = 'ready';
+          item.error = (err as Error).message;
+        }
       }
       queue = queue;
     }
+    // Anything not reached (signed out part-way) goes back to waiting.
+    for (const item of batch) if (item.status === 'uploading') item.status = 'ready';
+    queue = queue;
     uploading = false;
+    uploadPhase = '';
     if (done) flash(`Uploaded ${done} ${done === 1 ? 'photo' : 'photos'} — the globe will update within a minute.`);
     setTimeout(() => {
       queue.filter((q) => q.status === 'done').forEach((q) => URL.revokeObjectURL(q.preview));
@@ -797,7 +849,7 @@
         <div class="upload-bar">
           {#if needsCountry}<span class="muted small">{needsCountry} {needsCountry === 1 ? 'photo needs' : 'photos need'} a country</span>{/if}
           <button class="primary" on:click={uploadAll} disabled={!readyCount || uploading || mode === 'none'}>
-            {uploading ? 'Uploading…' : `Upload ${readyCount} ${readyCount === 1 ? 'photo' : 'photos'}`}
+            {uploading ? (uploadPhase === 'saving' ? 'Saving…' : 'Uploading…') : `Upload ${readyCount} ${readyCount === 1 ? 'photo' : 'photos'}`}
           </button>
         </div>
       {/if}
