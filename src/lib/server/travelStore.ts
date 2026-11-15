@@ -40,10 +40,18 @@ export class ManifestConflictError extends Error {
   }
 }
 
+/** What a save builds on (Blob only): the copy that was read, and the copies that existed then. */
+interface VersionToken {
+  /** Pathname of the copy that was read; null when nothing was saved the versioned way yet. */
+  pathname: string | null;
+  /** Every saved copy at read time, oldest first (so a save can tidy up without listing again). */
+  all: { pathname: string; url: string }[];
+}
+
 interface Versioned {
   manifest: Manifest;
-  /** Which saved copy this is (Blob: its pathname; null for legacy / none / local). */
-  version: string | null;
+  /** null for local storage, which has a single file. */
+  version: VersionToken | null;
 }
 
 // ---------- Vercel Blob ----------
@@ -52,9 +60,14 @@ interface Versioned {
 // build on is never overwritten: every save writes a new, immutable file under travel/manifest/, and
 // the newest one is found with list(), which goes to the Blob API and is always current.
 //
-// list() is a metered "advanced" operation, so visitors never trigger it: each save also overwrites
-// the fixed public copy at MANIFEST_PATH, which the globe reads through the CDN (fine if it's a
-// minute behind). That file is also where data saved before versioned saves existed lives.
+// Versions are numbered: a save writes "the number it read + 1" and refuses to overwrite, so if
+// another save got there first the write fails and the caller retries on the fresh data. (Versions
+// saved before numbering are named <timestamp>-<random>; numbering carries on from that timestamp.)
+//
+// put() and list() are metered "advanced" operations, so a save uses three (list, version, public
+// copy) and visitors use none: each save also overwrites the fixed public copy at MANIFEST_PATH,
+// which the globe reads through the CDN (fine if it's a minute behind). That file is also where
+// data saved before versioned saves existed lives.
 const VERSION_PREFIX = 'travel/manifest/';
 const KEEP_VERSIONS = 5;
 const ONE_YEAR_S = 60 * 60 * 24 * 365;
@@ -73,25 +86,27 @@ async function listVersions(): Promise<ListBlobResultBlob[]> {
     blobs.push(...page.blobs);
     cursor = page.hasMore ? page.cursor : undefined;
   } while (cursor);
-  // Names start with a zero-padded timestamp, so name order is save order.
-  return blobs.sort((a, b) => a.pathname.localeCompare(b.pathname));
+  // Names start with a zero-padded number, so name order is save order.
+  return blobs.sort((a, b) => (a.pathname < b.pathname ? -1 : a.pathname > b.pathname ? 1 : 0));
 }
 
-function versionTime(pathname: string | undefined): number {
-  const n = pathname ? Number(pathname.slice(VERSION_PREFIX.length).split('-')[0]) : NaN;
+/** The number a version's name starts with (0 when there is no version yet). */
+function versionNumber(pathname: string | null): number {
+  const n = pathname ? Number(pathname.slice(VERSION_PREFIX.length).match(/^\d+/)?.[0]) : NaN;
   return Number.isFinite(n) ? n : 0;
 }
 
 const blob = {
   async read(): Promise<Versioned> {
-    const newest = (await listVersions()).at(-1);
+    const all = (await listVersions()).map((b) => ({ pathname: b.pathname, url: b.url }));
+    const newest = all.at(-1);
     if (newest) {
       const res = await fetch(newest.url, { cache: 'no-store' });
       if (!res.ok) throw new Error(`Couldn't read the travel data (${res.status}).`);
-      return { manifest: (await res.json()) as Manifest, version: newest.pathname };
+      return { manifest: (await res.json()) as Manifest, version: { pathname: newest.pathname, all } };
     }
     // Nothing saved the new way yet: start from the data saved the old way (or empty).
-    return { manifest: (await readPublicCopy()) ?? emptyManifest(), version: null };
+    return { manifest: (await readPublicCopy()) ?? emptyManifest(), version: { pathname: null, all } };
   },
 
   /** For the public globe: no list() call; may be up to a minute behind the latest save. */
@@ -99,23 +114,25 @@ const blob = {
     return (await readPublicCopy()) ?? (await blob.read()).manifest;
   },
 
-  async write(m: Manifest, readVersion: string | null): Promise<void> {
-    const versions = await listVersions();
-    const newest = versions.at(-1)?.pathname ?? null;
-    if (newest !== readVersion) throw new ManifestConflictError();
-
-    // Always sort after the current newest, even if this server's clock is a little behind.
-    const time = Math.max(Date.now(), versionTime(newest ?? undefined) + 1);
-    const name = `${VERSION_PREFIX}${String(time).padStart(15, '0')}-${Math.random().toString(36).slice(2, 8)}.json`;
+  async write(m: Manifest, version: VersionToken | null): Promise<void> {
+    const versions = version?.all ?? [];
+    // The next number after the copy this save was built on. If another save already wrote it,
+    // the put refuses to overwrite: that's the conflict check, with no second list().
+    const name = `${VERSION_PREFIX}${String(versionNumber(version?.pathname ?? null) + 1).padStart(15, '0')}.json`;
     const body = JSON.stringify(m);
-    await put(name, body, {
-      access: 'public',
-      contentType: 'application/json',
-      addRandomSuffix: false,
-      allowOverwrite: false,
-      cacheControlMaxAge: ONE_YEAR_S, // never overwritten, so safe to cache
-      ...auth(),
-    });
+    try {
+      await put(name, body, {
+        access: 'public',
+        contentType: 'application/json',
+        addRandomSuffix: false,
+        allowOverwrite: false,
+        cacheControlMaxAge: ONE_YEAR_S, // never overwritten, so safe to cache
+        ...auth(),
+      });
+    } catch (err) {
+      if (/already exists|allowOverwrite/i.test(String(err))) throw new ManifestConflictError();
+      throw err;
+    }
 
     // The save is done; the rest is best effort. Refresh the public copy (the next save rewrites it
     // if this fails) and keep only the newest few versions.
@@ -264,6 +281,23 @@ export async function putFile(pathname: string, data: Blob, contentType: string)
 
 export async function deleteFiles(urls: string[]): Promise<void> {
   return backend().deleteFiles(urls);
+}
+
+/**
+ * Whether a URL is a photo file this site stored (the only URLs a saved photo may point to, and
+ * the only ones the uploader may ask to delete).
+ */
+export function isOwnPhotoUrl(url: unknown): url is string {
+  if (typeof url !== 'string' || url.length > 600) return false;
+  const mode = storeMode();
+  if (mode === 'local') return url.startsWith(`${LOCAL_URL}travel/photos/`) && !url.includes('..');
+  if (mode !== 'blob') return false;
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && u.hostname.endsWith('.public.blob.vercel-storage.com') && u.pathname.startsWith('/travel/photos/');
+  } catch {
+    return false;
+  }
 }
 
 export async function storageUsage(): Promise<StorageUsage> {

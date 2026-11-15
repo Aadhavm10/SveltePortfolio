@@ -1,8 +1,8 @@
 // Edit a visited country's dates, note, colour and photo order.
 import type { APIRoute } from 'astro';
 import { guard, json } from '../../../../lib/server/auth';
-import { updateManifest } from '../../../../lib/server/travelStore';
 import { storageFailure } from '../../../../lib/server/storageErrors';
+import { updatePlaces } from '../../../../lib/server/photoPlaces';
 
 export const prerender = false;
 
@@ -28,7 +28,7 @@ export const PATCH: APIRoute = async (ctx) => {
   }
 
   try {
-    const { manifest } = await updateManifest((m) => {
+    const { manifest } = await updatePlaces((m) => {
       const c = m.countries[id];
       if (!c) throw new NotFound();
       if (typeof body.when === 'string') c.when = body.when.trim().slice(0, 80) || undefined;

@@ -22,7 +22,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import ConicPolygonGeometry from 'three-conic-polygon-geometry';
 import { geoArea } from 'd3-geo';
 import type { Position } from 'geojson';
-import { latLngToVector3, regionFocus, type World } from '../../lib/geo';
+import { findRegionAt, latLngToVector3, mainlandPolygons, regionFocus, type World } from '../../lib/geo';
 import { HOME, type Manifest } from '../../data/travel';
 import { linesToPositions } from './globeBody';
 
@@ -127,11 +127,13 @@ function buildCountry(
   id: string,
   colorHex: string,
   pinCoords: { lat: number; lng: number }[],
-  pixelRatio: number
+  pixelRatio: number,
+  /** Photo and home-base spots in this place: far-off pieces light up only where these are. */
+  anchors: { lat: number; lng: number }[] = []
 ): VisitedCountry | null {
   const country = world.regions.get(id);
   if (!country) return null;
-  const polygons = keptPolygons(country.polygons);
+  const polygons = mainlandPolygons(keptPolygons(country.polygons), anchors);
 
   const caps: BufferGeometry[] = [];
   const sides: BufferGeometry[] = [];
@@ -298,7 +300,11 @@ export function createVisitedLayer(world: World, manifest: Manifest, pixelRatio:
         seen.add(k);
         return true;
       });
-    const c = buildCountry(world, id, entry.color, pins, pixelRatio);
+    const anchors = [
+      ...entry.photos.filter((p) => p.lat !== undefined && p.lng !== undefined).map((p) => ({ lat: p.lat!, lng: p.lng! })),
+      ...(manifest.starred ?? []).filter((s) => findRegionAt(world, s.lat, s.lng)?.id === id),
+    ];
+    const c = buildCountry(world, id, entry.color, pins, pixelRatio, anchors);
     if (!c) continue;
     countries.set(id, c);
     group.add(c.group);

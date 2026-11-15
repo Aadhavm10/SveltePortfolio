@@ -1,8 +1,8 @@
 // Add a home base (lived there / been many times): a glowing marker on the globe, no date.
 import type { APIRoute } from 'astro';
 import { guard, json } from '../../../lib/server/auth';
-import { updateManifest } from '../../../lib/server/travelStore';
 import { storageFailure } from '../../../lib/server/storageErrors';
+import { updatePlaces } from '../../../lib/server/photoPlaces';
 import { MAX_STARRED, type StarredPlace } from '../../../data/travel';
 
 export const prerender = false;
@@ -39,7 +39,7 @@ export const POST: APIRoute = async (ctx) => {
   };
 
   try {
-    const { manifest } = await updateManifest((m) => {
+    const { manifest } = await updatePlaces((m) => {
       m.starred ??= [];
       if (m.starred.length >= MAX_STARRED) throw new TooMany();
       m.starred.push(place);

@@ -1,7 +1,21 @@
 // Where a photo lives: a country / US state ("124", "us-48") or a home base ("home:<id>").
 import { homeIdOf, homeTarget, isHomeTarget, type Manifest, type Photo } from '../../data/travel';
 import { regionName } from './countryNames';
+import { syncHomeRegions } from './homeRegions';
 import { pickColor } from './placeColors';
+import { updateManifest } from './travelStore';
+
+/**
+ * updateManifest for the uploader's changes: after each change, places that contain a home base
+ * with photos light up, and places nothing keeps lit (no photos, no home-base photos) go dark.
+ */
+export function updatePlaces<T>(mutate: (m: Manifest) => T | Promise<T>) {
+  return updateManifest(async (m) => {
+    const result = await mutate(m);
+    syncHomeRegions(m);
+    return result;
+  });
+}
 
 export type PlaceTarget = { kind: 'region'; id: string; name: string } | { kind: 'home'; id: string };
 
@@ -42,7 +56,7 @@ export interface PhotoHit {
   photo: Photo;
   /** Upload / move target of the place it's in. */
   key: string;
-  /** Take it out of its place (a country / state left with no photos is removed). */
+  /** Take it out of its place (updatePlaces then removes a country / state nothing keeps lit). */
   remove(): void;
 }
 
@@ -55,8 +69,6 @@ export function findPhoto(m: Manifest, id: string): PhotoHit | null {
         key: countryId,
         remove() {
           c.photos.splice(i, 1);
-          // A country with no photos left stops glowing on the globe.
-          if (c.photos.length === 0) delete m.countries[countryId];
         },
       };
     }

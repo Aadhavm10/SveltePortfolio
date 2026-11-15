@@ -1,9 +1,9 @@
 // Edit, move or delete a single photo (in a country / US state or a home base).
 import type { APIRoute } from 'astro';
 import { guard, json } from '../../../../lib/server/auth';
-import { deleteFiles, updateManifest } from '../../../../lib/server/travelStore';
+import { deleteFiles } from '../../../../lib/server/travelStore';
 import { storageFailure } from '../../../../lib/server/storageErrors';
-import { findPhoto, MissingHomeError, parseTarget, photosAt, targetKey } from '../../../../lib/server/photoPlaces';
+import { findPhoto, MissingHomeError, parseTarget, photosAt, targetKey, updatePlaces } from '../../../../lib/server/photoPlaces';
 
 export const prerender = false;
 
@@ -21,7 +21,7 @@ export const DELETE: APIRoute = async (ctx) => {
   const id = ctx.params.id ?? '';
 
   try {
-    const { manifest, result: removed } = await updateManifest((m) => {
+    const { manifest, result: removed } = await updatePlaces((m) => {
       const hit = findPhoto(m, id);
       if (!hit) throw new NotFound();
       hit.remove();
@@ -50,7 +50,7 @@ export const PATCH: APIRoute = async (ctx) => {
   if (body.countryId !== undefined && !moveTo) return json({ error: 'Pick a valid country, US state or home base.' }, 400);
 
   try {
-    const { manifest } = await updateManifest((m) => {
+    const { manifest } = await updatePlaces((m) => {
       const hit = findPhoto(m, id);
       if (!hit) throw new NotFound();
       const photo = hit.photo;
