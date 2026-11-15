@@ -245,6 +245,7 @@
 
   <div class="hero" class:show={ready} class:hidden={!!selected}>
     <h1>Aadhav Manimurugan</h1>
+    <p class="tagline">Software Developer Intern at HashiCorp (IBM) · CS at UT Dallas, graduating May 2027</p>
     {#if countryCount || starredCount}
       <div class="meta">
         {#if countryCount}
@@ -367,6 +368,15 @@
     letter-spacing: -0.02em;
     text-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
     max-width: 9.5em;
+  }
+
+  .tagline {
+    margin-top: 10px;
+    font-size: clamp(0.95rem, 1.6vw, 1.1rem);
+    font-weight: 600;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.85);
+    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
   }
 
   .sr-only {

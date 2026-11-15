@@ -194,12 +194,12 @@
 
         <div class="question-block">
           <h3 class="q-title">What are your current goals?</h3>
-          <p class="q-answer">Currently, I am looking for an internship for Summer 2026, as well as looking to graduate in December 2026.</p>
+          <p class="q-answer">I graduate from UT Dallas in May 2027 with a B.S. in Computer Science, and I'm looking for full-time new-grad software engineering roles starting in 2027.</p>
         </div>
 
         <div class="question-block">
           <h3 class="q-title">How many years of experience do you have?</h3>
-          <p class="q-answer">I have 3 years of experience in coding, and 1 year of experience in machine learning. Previously have held a Machine Learning Researcher position as well as a Software Engineering Intern position.</p>
+          <p class="q-answer">I'm a Software Developer Intern at HashiCorp (IBM), working in Go on HCP Vault Radar, a secrets-scanning product. Before that I was a Software Engineer Intern at Health Care Service Corporation (Blue Cross Blue Shield), a Machine Learning Researcher at UT Southwestern Medical Center, and a Software Engineering Intern at Techavidity.</p>
         </div>
 
         <div class="question-block">
@@ -347,10 +347,6 @@
             <a href="https://www.linkedin.com/in/aadhav-/" class="terminal-command" target="_blank" rel="noopener noreferrer">
               <span class="prompt">$</span> <span class="command-text">connect --linkedin</span>
               <span class="command-desc">/in/aadhav-</span>
-            </a>
-            <a href="https://www.instagram.com/aadhav_04/" class="terminal-command" target="_blank" rel="noopener noreferrer">
-              <span class="prompt">$</span> <span class="command-text">follow --instagram</span>
-              <span class="command-desc">@aadhav_04</span>
             </a>
           </div>
           <p class="prompt-line cursor-line">$ <span class="blinking-cursor">_</span></p>
