@@ -163,6 +163,28 @@
       manifest = m;
     } catch (err) {
       loadError = (err as Error).message;
+      return;
+    }
+    await syncIfNeeded();
+  }
+
+  /**
+   * A place containing a home base with photos should be lit, and a place with nothing in it
+   * shouldn't. Every save keeps this right; data from before the rule existed (or from a save that
+   * never happened) is fixed here, once, when the uploader opens.
+   */
+  let syncTried = false;
+  async function syncIfNeeded() {
+    if (syncTried || !manifest || !world) return;
+    const homes = groupHomes(manifest, world);
+    const missing = [...homes.keys()].some((id) => !manifest!.countries[id]);
+    const stale = Object.entries(manifest.countries).some(([id, c]) => c.photos.length === 0 && !homes.has(id));
+    if (!missing && !stale) return;
+    syncTried = true;
+    try {
+      ({ manifest } = await api('/api/admin/sync', { method: 'POST' }));
+    } catch (err) {
+      flash((err as Error).message);
     }
   }
 
